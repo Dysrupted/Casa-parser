@@ -1,0 +1,8 @@
+# Canonical zone -> aliases as they appear on listing sites.
+# Matching is case/accent-insensitive. Longest alias wins.
+# Only zones listed in search_profile.yaml are ingested; extra entries here are harmless.
+ain_diab: [ain diab, ain diab extension, aïn diab]
+anfa: [anfa, anfa superieur, anfa supérieur, quartier anfa]
+corniche: [corniche, boulevard de la corniche]
+racine: [racine, racine extension]
+gauthier: [gauthier, quartier gauthier]
