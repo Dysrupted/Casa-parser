@@ -367,6 +367,48 @@ def export(out: Path = typer.Option(Path("data/export"), help="Output folder")) 
     typer.echo(f"exported {len(rows)} listings, {len(market)} zones -> {out}")
 
 
+@app.command()
+def site(out: Path = typer.Option(Path("site"), help="Output folder for the static site")) -> None:
+    """Build a self-contained public web page (index.html) from the latest data."""
+    from datetime import timezone
+
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+    from radar.api import queries as Q
+    from radar.enrich.fx import rate_for
+
+    s, engine = _ctx()
+    with Session(engine) as db:
+        rows = Q.listing_rows(db, s, in_profile=None, limit=100000)
+        market = Q.market(db, s)
+        last = db.exec(select(Run).order_by(Run.id.desc())).first()
+        eur = rate_for(db, s.fx, Q.today_local(s))
+    listings = [{
+        "zone": r["zone"], "zone_label": r["zone_label"], "title": r["title"], "url": r["url"],
+        "sources": r["sources"], "price_mad": r["price_mad"], "price_eur": r["price_eur"],
+        "surface_m2": r["surface_m2"], "price_m2": r["price_m2"], "price_vs_zone": r["price_vs_zone"],
+        "score": r["score"], "in_profile": bool(r["in_profile"]), "first_seen": r["first_seen"],
+        "reasons": r["top_reasons"][:3],
+    } for r in rows]
+    zones = [{"zone": z["zone"], "zone_label": z["zone_label"], "inventory": z["inventory"],
+              **({"median_m2": z["current"]["median_m2"], "p25_m2": z["current"]["p25"],
+                  "p75_m2": z["current"]["p75"], "listings_in_index": z["current"]["count"]}
+                 if z["current"] else {"median_m2": None})} for z in market]
+    run_at = last.started_at.astimezone(timezone.utc) if last else None
+    meta = {"run_at_iso": run_at.isoformat() if run_at else "",
+            "run_at_label": run_at.strftime("%-d %b %Y, %H:%M UTC") if run_at else "unknown",
+            "eur_mad_label": f"1 EUR = {eur:.2f} MAD" if eur else "unavailable"}
+    # "</" can't appear inside the inline JSON script
+    data_json = json.dumps({"listings": listings, "zones": zones}, ensure_ascii=False).replace("</", "<\\/")
+    env = Environment(loader=FileSystemLoader(Path(__file__).parent / "api" / "templates"),
+                      autoescape=select_autoescape(["html"]))
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "index.html").write_text(env.get_template("site.html").render(meta=meta, data_json=data_json),
+                                    encoding="utf-8")
+    (out / ".nojekyll").write_text("")
+    typer.echo(f"site: {len(listings)} listings -> {out / 'index.html'}")
+
+
 def _r(x):
     return None if x is None else round(x)
 
