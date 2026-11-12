@@ -172,6 +172,8 @@ class Settings:
         self.zones = ZoneMap(aliases=self._load("zones.yaml"))
         enrich = EnrichFile(**self._load("enrich.yaml"))
         self.llm, self.geo, self.fx = enrich.llm, enrich.geo, enrich.fx
+        from radar.simulation.params import FinancingParams  # local: avoid import cycle
+        self.financing = FinancingParams(**self._load("financing.yaml"))
 
     def _load(self, name: str) -> dict:
         with open(self.config_dir / name, encoding="utf-8") as f:

@@ -125,3 +125,16 @@ class FxRate(SQLModel, table=True):
     date: date_ = Field(primary_key=True)
     eur_mad: float
     source: str
+
+
+class Simulation(SQLModel, table=True):
+    """Latest purchase simulation per property and parameter set (PRD F6)."""
+    __table_args__ = (UniqueConstraint("property_id", "params_hash"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="property.id", index=True)
+    params_hash: str
+    price_mad: int
+    ok: bool
+    outputs: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    computed_at: datetime

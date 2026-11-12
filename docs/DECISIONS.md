@@ -85,3 +85,32 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
     A sanity band rejects broken values; past `max_staleness_days` EUR is reported as null rather
     than stale. `manual_rate` overrides it, e.g. with your bank's quote. EUR is computed on read
     (`to_eur`), never stored on listings.
+
+## M3 — Purchase simulation
+
+22. **No rates in code or in the shipped config.** `config/financing.yaml` ships with every rate
+    `null`. `simulate()` refuses (`ok=false` + `missing_params`) rather than guess, and a test
+    (`test_shipped_config_has_no_invented_rates`) guards that. Fill it from the workbook.
+
+23. **Generic cost lines instead of hardcoded Moroccan fee formulas.** Each line is
+    `clamp(rate × base + fixed, min, max) × (1 + VAT)` with `base ∈ {price, loan}` and
+    `applies ∈ {always, agency_listing, never}`. This should express the workbook's lines. If a
+    line doesn't fit (e.g. tiered notary scale), extend `CostLine` rather than special-casing.
+
+24. **Decimal math, Excel ROUND (half away from zero) on outputs only.** That is needed to match the
+    workbook "to the dirham". PMT follows Excel's formula. Insurance supports `initial_capital`
+    (constant) and `outstanding_capital` (declining).
+
+25. **Financed acquisition costs** (optional) are solved as a fixed point, because loan-based costs
+    (mortgage registration) depend on the loan, which then includes them.
+
+26. **Output definitions**: `total_cash_needed` = down payment + acquisition costs (unless financed)
+    + bank fees; `total_cost_of_credit` = interest + insurance + bank fees; `all_in_price` =
+    price + acquisition costs; `all_in_cost` = all-in price + cost of credit. EUR band = all-in at
+    EUR/MAD × (1 ± sensitivity). **Check these against the workbook's definitions.**
+
+27. **Agency fee applies** when resolved feature `agency_or_private == agency`, falling back to the
+    listing having an agency name.
+
+28. **Reference cases** live in `tests/fixtures/simulation/reference_cases.yaml`. The test is skipped
+    until they are filled, then it must match every listed output exactly.
