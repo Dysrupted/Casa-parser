@@ -143,4 +143,5 @@ def multi_pages() -> dict:
 def multi_settings(settings):
     settings.sources["avito"].search_urls = [AVITO]
     settings.sources["sarouty"].search_urls = [SAROUTY]
+    settings.sources["sarouty"].enabled = True   # synthetic fixture; disabled in prod config
     return settings

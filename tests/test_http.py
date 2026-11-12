@@ -74,3 +74,16 @@ def test_retry_on_5xx_then_fail(tmp_path):
     with pytest.raises(FetchError):
         fetcher(tmp_path, FakeTime()).get(f"{BASE}/a", "search")
     assert route.call_count == 2
+
+
+@respx.mock
+def test_long_retry_after_pauses_host_across_instances(tmp_path):
+    from radar.http import HostBackoff
+    respx.get(f"{BASE}/robots.txt").respond(404)
+    page = respx.get(f"{BASE}/a").respond(429, headers={"Retry-After": "105146"})
+    with pytest.raises(HostBackoff):
+        fetcher(tmp_path, FakeTime()).get(f"{BASE}/a", "search")
+    assert page.call_count == 1                                   # no retry against the site's wish
+    with pytest.raises(HostBackoff):                              # remembered by a new fetcher (next run)
+        fetcher(tmp_path, FakeTime()).get(f"{BASE}/b", "detail")
+    assert page.call_count == 1

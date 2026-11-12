@@ -2,17 +2,18 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import random
 import time
 from pathlib import Path
 from typing import Callable, Literal, Protocol
 from urllib.parse import urlsplit
-from urllib.robotparser import RobotFileParser
 
 import httpx
 
 from radar.config import HttpConfig
+from radar.robots import Robots
 
 log = logging.getLogger(__name__)
 Kind = Literal["search", "detail", "robots", "api", "photo"]
@@ -24,6 +25,10 @@ class FetchError(Exception):
 
 class RobotsDisallowed(FetchError):
     pass
+
+
+class HostBackoff(FetchError):
+    """The site asked us (Retry-After) to stay away longer than we wait inline."""
 
 
 class Fetcher(Protocol):
@@ -57,8 +62,13 @@ class PoliteFetcher:
         self._sleep, self._clock = sleep, clock
         self._rng = rng or random.Random()
         self._last_request: dict[str, float] = {}
-        self._robots: dict[str, RobotFileParser] = {}
+        self._robots: dict[str, Robots] = {}
         self.network_requests = 0
+        self._backoff_file = cache_dir / "backoff.json"
+        try:
+            self._backoff: dict[str, float] = json.loads(self._backoff_file.read_text())
+        except (OSError, ValueError):
+            self._backoff = {}
 
     # -- public -----------------------------------------------------------------
     def get(self, url: str, kind: Kind) -> str:
@@ -86,21 +96,25 @@ class PoliteFetcher:
         return data
 
     # -- robots -----------------------------------------------------------------
-    def _allowed(self, url: str) -> bool:
+    def _robots_for(self, url: str) -> Robots:
         parts = urlsplit(url)
         host = f"{parts.scheme}://{parts.netloc}"
         rp = self._robots.get(host)
         if rp is None:
-            rp = RobotFileParser()
             try:
-                rp.parse(self.get(f"{host}/robots.txt", "robots").splitlines())
+                rp = Robots(self.get(f"{host}/robots.txt", "robots"))
             except _NotFound:
-                rp.parse([])  # no robots.txt => everything allowed
+                rp = Robots(allow_all=True)  # no robots.txt => everything allowed
+            except HostBackoff:
+                raise  # not a robots verdict: don't cache a deny-all
             except FetchError as e:
                 log.warning("robots.txt unavailable for %s (%s): failing closed", host, e)
-                rp.disallow_all = True
+                rp = Robots(disallow_all=True)
             self._robots[host] = rp
-        return rp.can_fetch(self.cfg.user_agent, url)
+        return rp
+
+    def _allowed(self, url: str) -> bool:
+        return self._robots_for(url).can_fetch(self.cfg.user_agent, url)
 
     # -- network ----------------------------------------------------------------
     def _wait_turn(self, host: str) -> None:
@@ -108,12 +122,30 @@ class PoliteFetcher:
         if last is None:
             return
         delay = self._rng.uniform(self.cfg.min_delay_s, self.cfg.max_delay_s)
+        for scheme in ("https", "http"):   # honour the site's Crawl-delay when it is stricter
+            rp = self._robots.get(f"{scheme}://{host}")
+            if rp and (cd := rp.crawl_delay(self.cfg.user_agent)):
+                delay = max(delay, cd)
         remaining = delay - (self._clock() - last)
         if remaining > 0:
             self._sleep(remaining)
 
+    def _check_backoff(self, host: str) -> None:
+        until = self._backoff.get(host, 0)
+        if time.time() < until:
+            raise HostBackoff(f"{host} asked us to back off until "
+                              f"{time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(until))}")
+
+    def _set_backoff(self, host: str, seconds: float) -> None:
+        self._backoff[host] = time.time() + seconds
+        try:
+            self._backoff_file.write_text(json.dumps(self._backoff))
+        except OSError:
+            pass
+
     def _network_get(self, url: str, binary: bool = False):
         host = urlsplit(url).netloc
+        self._check_backoff(host)
         last_exc: Exception | None = None
         for attempt in range(self.cfg.max_retries + 1):
             self._wait_turn(host)
@@ -130,6 +162,22 @@ class PoliteFetcher:
                 last_exc = FetchError(f"HTTP {resp.status_code} for {url}")
                 if resp.status_code < 500 and resp.status_code != 429:
                     break  # 4xx other than 429: retrying is pointless and impolite
+                if resp.status_code == 429 and attempt < self.cfg.max_retries:
+                    ra = resp.headers.get("retry-after")
+                    try:  # the site told us how long to back off
+                        wait = max(0.0, min(float(ra or 0), self.cfg.max_retry_after_s))
+                    except ValueError:
+                        wait = 0.0
+                    try:
+                        asked = float(ra or 0)
+                    except ValueError:
+                        asked = 0.0
+                    if asked > self.cfg.max_retry_after_s:  # honour it: stop using this host
+                        self._set_backoff(host, asked)
+                        log.warning("429 from %s: Retry-After %.0fs, pausing this host", host, asked)
+                        raise HostBackoff(f"{host} asked us to back off {asked / 3600:.1f} h")
+                    log.warning("429 from %s (Retry-After=%r): backing off %.0fs", host, ra, wait)
+                    self._sleep(wait)
             finally:
                 self._last_request[host] = self._clock()
             if attempt < self.cfg.max_retries:

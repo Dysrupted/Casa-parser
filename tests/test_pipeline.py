@@ -129,7 +129,8 @@ def test_max_pages_reached_is_incomplete(settings, engine, clock):
     settings.sources["mubawab"].max_pages = 1
     run = make(settings, engine, clock)[0].run()
     assert run.status == "partial"
-    assert any("max_pages" in e for e in run.stats["mubawab"]["errors"])
+    assert any("max_pages" in n for n in run.stats["mubawab"]["notes"])     # expected limit, not an error
+    assert not run.stats["mubawab"]["errors"]
 
 
 def test_failing_source_does_not_kill_run(settings, engine, clock):

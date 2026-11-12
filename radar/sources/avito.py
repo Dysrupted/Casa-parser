@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 from urllib.parse import urljoin
 
@@ -19,8 +20,12 @@ log = logging.getLogger(__name__)
 
 
 def dig(node: Any, path: list) -> Any:
+    """Follow keys/indexes; a "k=v" step selects the first list item whose field k equals v."""
     for k in path:
-        if isinstance(node, dict):
+        if isinstance(k, str) and "=" in k and isinstance(node, list):
+            f, v = k.split("=", 1)
+            node = next((x for x in node if isinstance(x, dict) and str(x.get(f)) == v), None)
+        elif isinstance(node, dict):
             node = node.get(k)
         elif isinstance(node, list) and isinstance(k, int) and -len(node) <= k < len(node):
             node = node[k]
@@ -39,8 +44,19 @@ def first_of(node: Any, paths: list[list]) -> Any:
     return None
 
 
+def _int_or_none(v) -> int | None:
+    try:
+        return int(float(v)) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 class AvitoSource(Source):
     name = "avito"
+
+    def __init__(self, cfg, fetcher):
+        super().__init__(cfg, fetcher)
+        self._id = re.compile(cfg.id_pattern)
 
     def _blob(self, html: str) -> dict | None:
         tree = HTMLParser(html)
@@ -71,14 +87,14 @@ class AvitoSource(Source):
             if not isinstance(ad, dict):
                 continue
             ext, url = self._f(ad, "external_id"), self._f(ad, "url")
-            if ext is None or url is None:
-                continue
+            if ext is None or url is None or not self._id.search(str(url)):
+                continue  # e.g. immoneuf.avito.ma project units: other host, no ad id
             price = self._f(ad, "price")
             price_mad = int(price) if isinstance(price, (int, float)) and price >= 10_000 else parse_price_mad(
                 str(price) if price is not None else None)
             params_text = " | ".join(str(x) for x in (self._f(ad, "rooms_text"), self._f(ad, "bedrooms_text")) if x)
             counts = parse_counts(params_text)
-            rooms, beds = self._f(ad, "rooms"), self._f(ad, "bedrooms")
+            rooms, beds = _int_or_none(self._f(ad, "rooms")), _int_or_none(self._f(ad, "bedrooms"))
             photos = self._f(ad, "photos") or []
             photos = [p if isinstance(p, str) else first_of(p, [["url"], ["src"]]) for p in photos]
             loc = self._f(ad, "location")
@@ -86,8 +102,10 @@ class AvitoSource(Source):
                 source=self.name, external_id=str(ext), url=urljoin(self.cfg.base_url, str(url)).split("?")[0],
                 title=clean(self._f(ad, "title")) or None, price_mad=price_mad,
                 surface_m2=self._num(self._f(ad, "surface")),
-                rooms=int(rooms) if isinstance(rooms, (int, float)) else counts["rooms"],
-                bedrooms=int(beds) if isinstance(beds, (int, float)) else counts["bedrooms"],
+                rooms=rooms if rooms is not None else counts["rooms"],
+                bedrooms=beds if beds is not None else counts["bedrooms"],
+                bathrooms=_int_or_none(self._f(ad, "bathrooms")),
+                description=clean(self._f(ad, "description")) or None,
                 location_raw=", ".join(loc) if isinstance(loc, list) else (clean(str(loc)) if loc else None),
                 agency=clean(self._f(ad, "agency")) or None,
                 photos=[p for p in photos if isinstance(p, str)],

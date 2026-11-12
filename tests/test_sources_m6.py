@@ -15,7 +15,7 @@ def test_avito_search_and_detail(settings):
     assert set(ads) == {"55500001", "55500002", "55500003"}          # block without id skipped
     a = ads["55500001"]
     assert a.url == "https://www.avito.ma/fr/ain_diab/appartements/Appartement_vue_mer_55500001.htm"
-    assert (a.price_mad, a.surface_m2, a.rooms, a.bedrooms) == (2_600_000, 92.0, 4, 3)
+    assert (a.price_mad, a.surface_m2, a.bedrooms) == (2_600_000, 92.0, 3)
     assert a.location_raw == "Aïn Diab" and a.agency == "Agence Atlantic Immo"
     assert ads["55500002"].photos == ["https://content.avito.ma/a2.jpg"]   # {"url": ...} form
     d = s.parse_detail_page((AFIX / "detail_55500001.synthetic.html").read_text())
@@ -26,6 +26,7 @@ def test_avito_search_and_detail(settings):
 
 
 def test_sarouty_cards(settings):
+    assert not settings.sources["sarouty"].enabled          # blocks bot user agents (403)
     s = SaroutySource(settings.sources["sarouty"], FakeFetcher({}))
     cards = {c.external_id: c for c in s.parse_search_page((SFIX / "search_p1.synthetic.html").read_text())}
     g = cards["6600001"]

@@ -1,8 +1,8 @@
 http:
   # Polite identification. RADAR_CONTACT from .env is appended if set.
   user_agent: "CasaRadar/0.1 (personal low-volume research bot)"
-  min_delay_s: 3.0          # hard floor enforced in code: must be >= 3
-  max_delay_s: 7.0
+  min_delay_s: 5.0          # hard floor enforced in code: must be >= 3 (5 after a 429 from Mubawab)
+  max_delay_s: 9.0
   timeout_s: 30
   max_retries: 2
   retry_backoff_s: 10
@@ -22,15 +22,16 @@ sources:
   mubawab:
     enabled: true
     base_url: https://www.mubawab.ma
-    # One URL per target zone keeps crawls small and complete (needed for removal detection).
-    # VERIFY these against the live site; run `radar record-fixture <url>` to capture fixtures.
+    # Verified 2026-11-12. Page 1 only: robots.txt disallows `/*:` which covers the `:p:N`
+    # pagination, so each neighbourhood yields its first ~30 listings per day (newest/premium).
+    # Consequence: the crawl is never "complete" -> no removal detection for Mubawab.
     search_urls:
-      - https://www.mubawab.ma/fr/sd/casablanca-ain-diab/appartements-a-vendre
-      - https://www.mubawab.ma/fr/sd/casablanca-anfa/appartements-a-vendre
-      - https://www.mubawab.ma/fr/sd/casablanca-racine/appartements-a-vendre
-      - https://www.mubawab.ma/fr/sd/casablanca-gauthier/appartements-a-vendre
-    pagination: "{url}:p:{page}"    # page 1 = bare url
-    id_pattern: "/a/(\\d+)"
+      - https://www.mubawab.ma/fr/sd/casablanca/ain-diab/appartements-a-vendre
+      - https://www.mubawab.ma/fr/sd/casablanca/anfa/appartements-a-vendre
+      - https://www.mubawab.ma/fr/sd/casablanca/racine/appartements-a-vendre
+      - https://www.mubawab.ma/fr/sd/casablanca/gauthier/appartements-a-vendre
+    pagination: "{url}:p:{page}"    # page 1 = bare url (page 2+ blocked by robots.txt, see above)
+    id_pattern: "/p?a/(\\d+)"
     max_pages: 20
     fetch_details: true
     # Selector chains: first match wins. Tune here when the site changes, not in code.
@@ -47,6 +48,7 @@ sources:
       detail_description: ["div.blockProp p", "p.descLi", "div.description"]
       detail_photos: ["div.slider img", "div#masonryPhoto img", "img.imgSlider"]
       detail_features: ["div.adMainFeature span", "div.adFeature span", "div.mainInfoProp span"]
+      amenities: ["div.adFeature span", "div.adFeatures span"]
       detail_agency: ["div.businessName", "p.link a", ".agencyName"]
       detail_address: ["h3.greyTit", "div.adMainInfo h3", ".locationAddress"]
       # Elements carrying map coordinates; first attr pair found wins.
@@ -55,23 +57,22 @@ sources:
   avito:
     enabled: true
     base_url: https://www.avito.ma
-    # VERIFY on the live site (record fixtures with `radar record-fixture`).
+    # Verified 2026-11-12. Neighbourhood slugs don't filter on Avito, so crawl Casablanca
+    # apartments newest-first and keep target zones locally. ~47 ads/page.
     search_urls:
-      - https://www.avito.ma/fr/ain_diab/appartements-%C3%A0_vendre
-      - https://www.avito.ma/fr/anfa/appartements-%C3%A0_vendre
-      - https://www.avito.ma/fr/racine/appartements-%C3%A0_vendre
-      - https://www.avito.ma/fr/gauthier/appartements-%C3%A0_vendre
+      - https://www.avito.ma/fr/casablanca/appartements-%C3%A0_vendre
     pagination: "{url}?o={page}"
-    max_pages: 20
+    max_pages: 8
     fetch_details: true
     id_pattern: "_(\\d+)\\.htm"
     embedded_json:
       script: "script#__NEXT_DATA__"
-      # Each entry: list of alternative paths (first non-empty wins).
+      # Each entry: list of alternative paths (first non-empty wins). "k=v" selects a list item.
       ads_paths:
+        - [props, pageProps, componentProps, ads, ads]
         - [props, pageProps, initialReduxState, ad, search, ads]
-        - [props, pageProps, ads]
       detail_ad_paths:
+        - [props, pageProps, componentProps, adInfo, ad]
         - [props, pageProps, initialReduxState, ad, view, adInfo]
         - [props, pageProps, ad]
       fields:
@@ -79,19 +80,21 @@ sources:
         url: [[href], [url]]
         title: [[subject], [title]]
         price: [[price, value], [price]]
-        surface: [[params, size], [surface]]
-        rooms: [[params, rooms]]
-        bedrooms: [[params, bedrooms]]
-        location: [[location, area, name], [location, city, name], [location]]
+        surface: [[params, secondary, "key=size", value], [params, size], [surface]]
+        bedrooms: [[params, secondary, "key=rooms", value], [params, bedrooms]]   # Avito "rooms" = chambres
+        bathrooms: [[params, secondary, "key=bathrooms", value]]
+        location: [[location, area, name], [location]]
         agency: [[seller, name], [shopName]]
         photos: [[images], [photos]]
-        description: [[body], [description]]
+        description: [[description], [body]]
         address: [[location, address]]
         lat: [[location, coordinates, lat], [lat]]
         lon: [[location, coordinates, lng], [lng]]
 
   sarouty:
-    enabled: true
+    # Disabled 2026-11-12: Sarouty answers 403 to user agents that identify as bots. We don't
+    # spoof a browser UA, so this source stays off unless they allow it.
+    enabled: false
     base_url: https://www.sarouty.ma
     # VERIFY on the live site.
     search_urls:
