@@ -1,0 +1,45 @@
+# Scoring (PRD F5). Score = sum(weight_i * factor_i) - penalties, on 0-100.
+# Every factor is in [0, 1]; weights are normalised so they sum to 100.
+
+market_index:
+  window_days: 90          # listings seen in the last N days feed the zone index
+  min_points: 5            # below this the zone index is flagged unreliable (PRD target: 30)
+  outlier_iqr_k: 1.5       # drop price/m2 outside [p25 - k*IQR, p75 + k*IQR] before computing stats
+  trend_days: [30, 90]
+
+weights:
+  price_vs_zone: 30
+  zone_preference: 15
+  beach_distance: 15
+  features: 20
+  building: 10
+  market_signals: 10
+
+missing_factor_value: 0.5  # neutral value when a factor can't be computed (noted in the breakdown)
+
+factors:
+  price_vs_zone:
+    # piecewise-linear on the zone's asking-price/m2 distribution; clamped outside
+    anchors: {p25: 1.0, median: 0.5, p75: 0.0}
+  beach_distance:
+    full_score_within_m: 500
+    zero_score_beyond_m: 3000
+  features:
+    # value scale for each nice-to-have; sea_view: full=1, partial=partial_sea_view
+    weights: {sea_view: 3, parking: 2, terrace: 2, recent_building: 1, concierge: 1, elevator: 1}
+    partial_sea_view: 0.5
+    min_terrace_m2: 5
+  building:
+    condition: {new: 1.0, good: 0.7, to_renovate: 0.2}
+    recent_max_age_years: 15     # "recent_building" + age score reaches 0 at old_age_years
+    old_age_years: 50
+  market_signals:
+    price_drop_lookback_days: 30
+    price_drop_full_score_pct: 0.10   # cumulative drop >= 10 % within lookback -> 1.0
+    dom_full_score_days: 120          # long on market = negotiation room
+    dom_weight: 0.5                   # share of this factor from days-on-market vs price drop
+    relist_suspicious_count: 3        # PRD: flag listings reposted > 3 times
+
+penalties:
+  data_quality_max: 15         # points removed when all quality checks fail
+  checks: [price, surface, photos, description, geo_precise]   # geo_precise = page/address geocode

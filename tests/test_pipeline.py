@@ -177,7 +177,7 @@ def test_pipeline_with_enrichment(settings, engine, clock):
     prov = FakeProvider(payload(elevator={"value": True, "confidence": 0.95, "source_span": "avec ascenseur"}))
     enr = Enricher(settings, fetcher, prov)
     src = MubawabSource(settings.sources["mubawab"], fetcher)
-    run = Pipeline(settings, engine, [src], now=clock, enricher=enr).run()
+    run = Pipeline(settings, engine, [src], now=clock, stages=[enr]).run()
     e = run.stats["enrich"]
     assert e["fx"] == 10.9 and e["llm"] == 1 and e["errors"] == []    # 1 listing has a description
     assert e["geo"] == {"page": 1, "address": 0, "zone": 3, "none": 0}
@@ -189,7 +189,7 @@ def test_pipeline_with_enrichment(settings, engine, clock):
         assert p.dist_corniche_m < 1500
 
     # Same-day rerun: no new LLM calls (description unchanged)
-    Pipeline(settings, engine, [src], now=clock, enricher=enr).run()
+    Pipeline(settings, engine, [src], now=clock, stages=[enr]).run()
     assert prov.calls == 1
 
 
@@ -202,7 +202,7 @@ def test_llm_unavailable_degrades_to_rules(settings, engine, clock):
     msgs = []
     enr = Enricher(settings, fetcher, FakeProvider(exc=LLMUnavailable("no key")), notify=msgs.append)
     run = Pipeline(settings, engine, [MubawabSource(settings.sources["mubawab"], fetcher)],
-                   now=clock, enricher=enr, notify=msgs.append).run()
+                   now=clock, stages=[enr], notify=msgs.append).run()
     e = run.stats["enrich"]
     assert e["llm"] == 0 and e["llm_pending"] == 1 and e["rules"] == 1
     assert any("LLM unavailable" in m for m in msgs)
@@ -219,14 +219,34 @@ def test_pipeline_simulates_priced_listings(settings, engine, clock):
     enr = Enricher(settings, fetcher, None)
     src = MubawabSource(settings.sources["mubawab"], fetcher)
     # shipped config: rates missing -> skipped, never guessed
-    run = Pipeline(settings, engine, [src], now=clock, enricher=enr).run()
+    run = Pipeline(settings, engine, [src], now=clock, stages=[enr]).run()
     assert run.stats["enrich"]["simulation"]["status"] == "skipped"
 
     settings.financing = FinancingParams(**SYNTH)
-    run = Pipeline(settings, engine, [src], now=clock, enricher=enr).run()
+    run = Pipeline(settings, engine, [src], now=clock, stages=[enr]).run()
     assert run.stats["enrich"]["simulation"]["simulated"] == 3      # 'Prix à consulter' excluded
     with Session(engine) as db:
         sims = {s.price_mad: s for s in db.exec(select(Simulation))}
     a = sims[2_650_000].outputs
     assert a["ok"] and "agency_fee" in a["cost_breakdown_mad"]       # agency listing
     assert "agency_fee" not in sims[1_980_000].outputs["cost_breakdown_mad"]
+
+
+def test_pipeline_scores_every_listing(settings, engine, clock):
+    from radar.models import Score
+    from radar.pipeline.analyze import Analyzer
+    from radar.pipeline.enrich import Enricher
+
+    settings.scoring["market_index"]["min_points"] = 1
+    fetcher = FakeFetcher(default_pages())
+    stages = [Enricher(settings, fetcher, None), Analyzer(settings)]
+    src = MubawabSource(settings.sources["mubawab"], fetcher)
+    run = Pipeline(settings, engine, [src], now=clock, stages=stages).run()
+    assert run.stats["analyze"]["scores"]["scored"] == 4
+    assert set(run.stats["analyze"]["index"]) == {"ain_diab", "anfa", "gauthier"}  # racine has no price
+    Pipeline(settings, engine, [src], now=clock, stages=stages).run()          # same-day rerun
+    with Session(engine) as db:
+        scores = db.exec(select(Score)).all()
+    assert len(scores) == 4                                                      # one per property/day
+    for sc in scores:
+        assert sc.breakdown["factors"] and 0 <= sc.total <= 100

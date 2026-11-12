@@ -36,9 +36,10 @@ class Pipeline:
         sources: list[Source],
         now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
         notify: Notifier = _log_notifier,
-        enricher=None,
+        stages: list | None = None,
     ):
-        self.s, self.engine, self.sources, self.enricher = settings, engine, sources, enricher
+        """`stages` run after crawling, in order: objects with `.name` and `.run(db, now, today)`."""
+        self.s, self.engine, self.sources, self.stages = settings, engine, sources, stages or []
         self.now, self.notify = now, notify
         self.tz = ZoneInfo(settings.pipeline.timezone)
 
@@ -60,10 +61,16 @@ class Pipeline:
                     stats[src.name] = {"status": "failed", "errors": [repr(e)]}
                     self.notify(f"Casa Radar: source {src.name} failed: {e!r}")
             statuses = {v["status"] for v in stats.values()}
-            if self.enricher is not None:
-                stats["enrich"] = self.enricher.run(db, started, started.astimezone(self.tz).date())
-                if stats["enrich"]["errors"]:
-                    self.notify(f"Casa Radar: enrichment issues: {stats['enrich']['errors'][:3]}")
+            for stage in self.stages:
+                try:
+                    stats[stage.name] = st = stage.run(db, started, started.astimezone(self.tz).date())
+                    db.commit()
+                except Exception as e:  # a stage bug must not lose the crawl
+                    db.rollback()
+                    log.exception("stage %s failed", stage.name)
+                    stats[stage.name] = st = {"errors": [repr(e)]}
+                if st.get("errors"):
+                    self.notify(f"Casa Radar: {stage.name} issues: {st['errors'][:3]}")
             run.status = "ok" if statuses <= {"ok"} else ("failed" if statuses == {"failed"} else "partial")
             run.stats, run.finished_at = stats, self.now()
             db.add(run)

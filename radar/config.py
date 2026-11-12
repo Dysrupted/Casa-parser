@@ -174,6 +174,8 @@ class Settings:
         self.llm, self.geo, self.fx = enrich.llm, enrich.geo, enrich.fx
         from radar.simulation.params import FinancingParams  # local: avoid import cycle
         self.financing = FinancingParams(**self._load("financing.yaml"))
+        self.scoring = self._load("scoring.yaml")
+        _validate_scoring(self.scoring)
 
     def _load(self, name: str) -> dict:
         with open(self.config_dir / name, encoding="utf-8") as f:
@@ -186,3 +188,14 @@ class Settings:
     @property
     def target_zones(self) -> set[str]:
         return set(self.profile.zones)
+
+
+def _validate_scoring(cfg: dict) -> None:
+    """Fail fast on a malformed scoring.yaml (kept as a dict for easy tuning)."""
+    need = {"price_vs_zone", "zone_preference", "beach_distance", "features", "building", "market_signals"}
+    if set(cfg.get("weights", {})) != need:
+        raise ValueError(f"scoring.weights must define exactly {sorted(need)}")
+    if any(w < 0 for w in cfg["weights"].values()) or sum(cfg["weights"].values()) <= 0:
+        raise ValueError("scoring.weights must be non-negative with a positive sum")
+    if set(cfg["market_index"]["trend_days"]) - {30, 90}:
+        raise ValueError("market_index.trend_days supports 30 and 90 (zone_index columns)")

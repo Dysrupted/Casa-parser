@@ -14,6 +14,7 @@ from radar.http import PoliteFetcher
 from radar.enrich.fx import rate_for
 from radar.llm.provider import build_provider
 from radar.models import Listing, ListingEvent, Property, PropertyFeature, Run, Status
+from radar.pipeline.analyze import Analyzer
 from radar.pipeline.enrich import Enricher
 from radar.pipeline.run import Pipeline, build_sources
 
@@ -40,7 +41,7 @@ def run(source: list[str] = typer.Option(None, "--source", "-s", help="Limit to 
     s, engine = _ctx()
     fetcher = PoliteFetcher(s.http, s.data_dir / "cache")
     enricher = Enricher(s, fetcher, build_provider(s.llm))
-    result = Pipeline(s, engine, build_sources(s, fetcher, source), enricher=enricher).run()
+    result = Pipeline(s, engine, build_sources(s, fetcher, source), stages=[enricher, Analyzer(s)]).run()
     typer.echo(json.dumps({"run_id": result.id, "status": result.status, "stats": result.stats}, indent=2))
     raise typer.Exit(0 if result.status != "failed" else 1)
 
@@ -154,6 +155,46 @@ def simulate_cmd(price: float = typer.Argument(..., help="Price in MAD"),
             typer.echo(f"  - {m}")
         raise typer.Exit(2)
     typer.echo(json.dumps(res.to_dict(), indent=2))
+
+
+@app.command()
+def top(n: int = typer.Option(10, "-n"), all_: bool = typer.Option(False, "--all", help="Include out-of-profile")) -> None:
+    """Best-scored active listings with the reasons behind each score."""
+    from radar.models import Score
+
+    _, engine = _ctx()
+    with Session(engine) as db:
+        latest = db.exec(select(Score.date).order_by(Score.date.desc())).first()
+        q = select(Score).where(Score.date == latest).order_by(Score.total.desc())
+        if not all_:
+            q = q.where(Score.in_profile)
+        for sc in db.exec(q.limit(n)):
+            l = db.exec(select(Listing).where(Listing.property_id == sc.property_id)).first()
+            b = sc.breakdown
+            pvz = f"{b['price_vs_zone']:.2f}x zone" if b.get("price_vs_zone") else "-"
+            typer.echo(f"{sc.total:5.1f}  {l.zone or '?':9} {l.price_mad or 0:>10,} MAD  {l.surface_m2 or 0:>5g} m²  {pvz}")
+            typer.echo(f"       {l.url}")
+            for r in b.get("top_reasons", []):
+                typer.echo(f"       + {r}")
+            for r in b.get("penalty_reasons", []) + b.get("flags", []) + b.get("profile_notes", []):
+                typer.echo(f"       - {r}")
+
+
+@app.command()
+def index() -> None:
+    """Latest asking-price/m² index per zone."""
+    from radar.market.index import latest_index
+
+    s, engine = _ctx()
+    with Session(engine) as db:
+        for z in s.profile.zones:
+            r = latest_index(db, z)
+            if r is None:
+                typer.echo(f"{z:10} no data")
+                continue
+            tr = " ".join(f"{d}d {getattr(r, f'trend_{d}d'):+.1%}" for d in (30, 90) if getattr(r, f"trend_{d}d") is not None)
+            typer.echo(f"{z:10} median {r.median_m2:>7,.0f}  p25 {r.p25:>7,.0f}  p75 {r.p75:>7,.0f}  n={r.count:<3}"
+                       f"{'' if r.reliable else ' (unreliable)'}  {tr}")
 
 
 if __name__ == "__main__":
