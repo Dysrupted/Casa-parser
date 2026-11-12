@@ -15,7 +15,7 @@ import httpx
 from radar.config import HttpConfig
 
 log = logging.getLogger(__name__)
-Kind = Literal["search", "detail", "robots", "api"]
+Kind = Literal["search", "detail", "robots", "api", "photo"]
 
 
 class FetchError(Exception):
@@ -73,6 +73,18 @@ class PoliteFetcher:
         self._cache_write(url, text)
         return text
 
+    def get_bytes(self, url: str, kind: Kind = "photo") -> bytes:
+        """Binary fetch (photos for perceptual hashing). Same politeness + cache rules."""
+        p = self._cache_path(url).with_suffix(".bin")
+        ttl_s = getattr(self.cfg.cache_ttl_hours, kind) * 3600
+        if p.exists() and time.time() - p.stat().st_mtime < ttl_s:
+            return p.read_bytes()
+        if not self._allowed(url):
+            raise RobotsDisallowed(f"robots.txt disallows (or could not be read) for {url}")
+        data = self._network_get(url, binary=True)
+        p.write_bytes(data)
+        return data
+
     # -- robots -----------------------------------------------------------------
     def _allowed(self, url: str) -> bool:
         parts = urlsplit(url)
@@ -100,7 +112,7 @@ class PoliteFetcher:
         if remaining > 0:
             self._sleep(remaining)
 
-    def _network_get(self, url: str) -> str:
+    def _network_get(self, url: str, binary: bool = False):
         host = urlsplit(url).netloc
         last_exc: Exception | None = None
         for attempt in range(self.cfg.max_retries + 1):
@@ -114,7 +126,7 @@ class PoliteFetcher:
                 if resp.status_code == 404:
                     raise _NotFound(url)
                 if resp.status_code == 200:
-                    return resp.text
+                    return resp.content if binary else resp.text
                 last_exc = FetchError(f"HTTP {resp.status_code} for {url}")
                 if resp.status_code < 500 and resp.status_code != 429:
                     break  # 4xx other than 429: retrying is pointless and impolite
@@ -141,3 +153,46 @@ class PoliteFetcher:
 
 class _NotFound(FetchError):
     pass
+
+
+class PlaywrightFetcher(PoliteFetcher):
+    """Renders JS pages in headless Chromium. Same robots/delay/cache rules; HTML pages only."""
+
+    def __init__(self, *a, wait_until: str = "networkidle", **kw):
+        super().__init__(*a, **kw)
+        self._wait_until, self._pw, self._browser = wait_until, None, None
+
+    def _page_html(self, url: str) -> str:
+        if self._browser is None:
+            from playwright.sync_api import sync_playwright  # optional dependency
+
+            self._pw = sync_playwright().start()
+            self._browser = self._pw.chromium.launch()
+        page = self._browser.new_page(user_agent=self.cfg.user_agent)
+        try:
+            resp = page.goto(url, wait_until=self._wait_until, timeout=self.cfg.timeout_s * 1000)
+            if resp is None or resp.status != 200:
+                raise FetchError(f"HTTP {resp.status if resp else '?'} for {url}")
+            return page.content()
+        finally:
+            page.close()
+
+    def _network_get(self, url: str, binary: bool = False):
+        if binary or url.endswith("/robots.txt"):
+            return super()._network_get(url, binary)
+        host = urlsplit(url).netloc
+        self._wait_turn(host)
+        try:
+            self.network_requests += 1
+            return self._page_html(url)
+        except FetchError:
+            raise
+        except Exception as e:
+            raise FetchError(f"playwright: {type(e).__name__}: {e}") from e
+        finally:
+            self._last_request[host] = self._clock()
+
+    def close(self) -> None:
+        if self._browser:
+            self._browser.close()
+            self._pw.stop()

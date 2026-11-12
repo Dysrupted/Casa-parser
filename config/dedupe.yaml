@@ -1,0 +1,12 @@
+# Cross-site / repost deduplication (PRD F3).
+enabled: true
+candidate:                   # cheap filter: all must hold
+  same_zone: true
+  surface_tolerance_m2: 3
+  price_tolerance_pct: 0.05  # relative to the lower price
+confirm:                     # a candidate is merged if ANY confirmation holds (precision first)
+  phash_max_distance: 8      # Hamming distance between 64-bit perceptual hashes (0 = identical)
+  photos_per_listing: 3      # photos downloaded per listing, only for candidate pairs
+  description_min_similarity: 0.6   # Jaccard on word bigrams
+  description_min_chars: 80  # shorter descriptions are too generic to confirm anything
+recheck_rejected_after_days: 30     # re-evaluate a "not duplicate" pair after this long

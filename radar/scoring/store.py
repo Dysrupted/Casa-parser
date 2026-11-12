@@ -30,6 +30,15 @@ def price_drop_pct(db: Session, property_id: int, current: int | None, today: da
     return max(0.0, (peak - current) / peak)
 
 
+def repost_count(db: Session, property_id: int) -> int:
+    """Relists of the same ad + extra ads for the same flat on the same site (merged by dedupe)."""
+    ls = db.exec(select(Listing).where(Listing.property_id == property_id)).all()
+    per_source: dict[str, int] = {}
+    for l in ls:
+        per_source[l.source] = per_source.get(l.source, 0) + 1
+    return sum(l.relist_count for l in ls) + sum(n - 1 for n in per_source.values())
+
+
 def build_input(db: Session, s: Settings, prop: Property, l: Listing, today: date, cfg: dict) -> ScoreInput:
     zi = latest_index(db, prop.zone) if prop.zone else None
     feats = {k: v.value for k, v in resolved_features(db, prop.id, s.llm.min_confidence).items()}
@@ -41,7 +50,7 @@ def build_input(db: Session, s: Settings, prop: Property, l: Listing, today: dat
         days_on_market=(today - first_seen).days,
         price_drop_pct=price_drop_pct(db, prop.id, l.price_mad, today,
                                       cfg["factors"]["market_signals"]["price_drop_lookback_days"]),
-        relist_count=l.relist_count, has_photos=bool(l.photos), has_description=bool(l.description),
+        relist_count=repost_count(db, prop.id), has_photos=bool(l.photos), has_description=bool(l.description),
         current_year=today.year)
 
 

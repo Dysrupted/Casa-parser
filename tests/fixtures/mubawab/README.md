@@ -1,6 +1,6 @@
 # Mubawab fixtures
 
-`*.synthetic.html` files are **hand-written** to mirror Mubawab's known card/detail
+`*.synthetic.html` files (here and in `../avito`, `../sarouty`) are **hand-written** to mirror Mubawab's known card/detail
 structure — the build container could not reach mubawab.ma. Replace them with recorded
 pages before trusting the parser:
 

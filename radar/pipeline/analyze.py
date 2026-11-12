@@ -1,4 +1,4 @@
-"""Analysis stage (M4): zone index, then scores."""
+"""Analysis stage: zone index, per-property simulation, scores. Runs after dedupe."""
 from __future__ import annotations
 
 import logging
@@ -9,6 +9,7 @@ from sqlmodel import Session
 from radar.config import Settings
 from radar.market.index import compute_index
 from radar.scoring.store import score_all
+from radar.simulation.store import simulate_all
 
 log = logging.getLogger(__name__)
 
@@ -28,5 +29,6 @@ class Analyzer:
         unreliable = [z for z, r in idx.items() if not r.reliable]
         if unreliable:
             log.info("zone index unreliable (few points) for %s", unreliable)
+        st["simulation"] = simulate_all(db, self.s, now, today)
         st["scores"] = score_all(db, self.s, now, today)
         return st

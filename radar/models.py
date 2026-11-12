@@ -64,6 +64,7 @@ class Listing(SQLModel, table=True):
     page_lat: float | None = None         # coordinates embedded in the detail page, if any
     page_lon: float | None = None
     photos: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    photo_hashes: list[str] | None = Field(default=None, sa_column=Column(JSON))  # pHash hex, lazy
     raw_html_path: str | None = None
     detail_fetched_at: datetime | None = None
     first_seen: datetime
@@ -195,3 +196,25 @@ class AlertLog(SQLModel, table=True):
     created_at: datetime
     sent_at: datetime | None = None
     error: str | None = None
+
+
+class DedupePair(SQLModel, table=True):
+    """Every evaluated candidate pair (merged or not), so photos aren't re-fetched daily."""
+    __table_args__ = (UniqueConstraint("listing_a", "listing_b"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    listing_a: int = Field(foreign_key="listing.id")   # always the lower id
+    listing_b: int = Field(foreign_key="listing.id")
+    decision: str            # duplicate | distinct | manual
+    photo_distance: int | None = None
+    description_similarity: float | None = None
+    decided_at: datetime
+
+
+class PropertyMerge(SQLModel, table=True):
+    """Audit log of merges (loser property rows are deleted)."""
+    id: int | None = Field(default=None, primary_key=True)
+    survivor_id: int = Field(index=True)
+    loser_id: int
+    reason: str
+    merged_at: datetime

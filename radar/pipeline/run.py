@@ -237,8 +237,11 @@ class Pipeline:
 
 
 def build_sources(settings: Settings, fetcher, only: list[str] | None = None) -> list[Source]:
+    """`fetcher` serves plain-HTTP sources; `fetcher: playwright` sources get a rendering fetcher."""
+    from radar.http import PlaywrightFetcher
     from radar.sources import REGISTRY
 
+    pw = None
     out = []
     for name, cfg in settings.sources.items():
         if not cfg.enabled or (only and name not in only):
@@ -246,5 +249,9 @@ def build_sources(settings: Settings, fetcher, only: list[str] | None = None) ->
         if name not in REGISTRY:
             log.warning("source %s configured but not implemented; skipping", name)
             continue
-        out.append(REGISTRY[name](cfg, fetcher))
+        f = fetcher
+        if cfg.fetcher == "playwright":
+            pw = pw or PlaywrightFetcher(settings.http, settings.data_dir / "cache")
+            f = pw
+        out.append(REGISTRY[name](cfg, f))
     return out
