@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from radar.config import Settings
 from radar.enrich.fx import rate_for
-from radar.models import Listing, Simulation, Status
+from radar.models import Listing, Property, Simulation, Status
 from radar.normalize.extract import resolved_features
 from radar.simulation.engine import simulate
 
@@ -25,7 +25,12 @@ def simulate_all(db: Session, s: Settings, now: datetime, today: date) -> dict:
         return {"status": "skipped", "missing_params": missing}
     eur = rate_for(db, s.fx, today)
     n = 0
-    for l in db.exec(select(Listing).where(Listing.status != Status.removed, Listing.price_mad.is_not(None))):
+    from radar.scoring.store import best_listing  # local: avoid import cycle
+
+    for prop in db.exec(select(Property).where(Property.status != Status.removed)).all():
+        l = best_listing(db, prop.id)
+        if l is None or not l.price_mad:
+            continue
         res = simulate(l.price_mad, params, is_agency_listing(db, l, s.llm.min_confidence), eur)
         row = db.exec(select(Simulation).where(Simulation.property_id == l.property_id,
                                                Simulation.params_hash == h)).first()

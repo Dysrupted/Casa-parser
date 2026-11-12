@@ -170,3 +170,42 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 
 41. **No credentials = dry run.** Alerts are queued and logged, nothing is sent, and they go out once
     the token is set.
+
+## M6 — Avito, Sarouty, dedupe
+
+42. **Generic HTML-card source.** The Mubawab parser became `HtmlCardSource`, fully driven by
+    `sources.yaml` (selectors + `id_pattern`). Mubawab and Sarouty are 3-line subclasses, and a new
+    server-rendered site (Yakeey…) is a YAML block plus a registry entry.
+
+43. **Avito is read from the embedded `__NEXT_DATA__` JSON**, not the DOM. Paths are listed as
+    alternatives in `sources.yaml` (`embedded_json`), so a schema drift is a config edit. Avito,
+    Sarouty and the search URLs are all built from **synthetic fixtures**: verify on the live sites.
+
+44. **Playwright is opt-in per source** (`fetcher: playwright`, `pip install .[playwright]`). It
+    subclasses `PoliteFetcher`, so robots/delay/cache rules are identical. No source uses it by
+    default: both Avito (embedded JSON) and Sarouty appear server-rendered.
+
+45. **Dedupe = cheap candidates, then confirmation, precision first.** Candidates: same zone,
+    surface ±3 m², price ±5 %. Confirmation: description bigram-Jaccard ≥ 0.6 (if both texts are
+    ≥ 80 chars) **or** min photo pHash Hamming ≤ 8. If neither can be confirmed, nothing is merged.
+    All thresholds are in `config/dedupe.yaml`.
+
+46. **Photos are downloaded lazily**: only for candidate pairs that text didn't settle, at most 3
+    per listing, cached (90 d), hashes stored on `listing.photo_hashes`. Every decision is stored
+    in `dedupe_pair`, and "distinct" pairs are re-checked after 30 days, not daily.
+
+47. **Merge semantics**: the survivor is the property with the earliest `first_seen`. Listings are
+    re-pointed; features merge keeping the higher-confidence value; the note is kept (or
+    appended); alert history is re-pointed so the flat isn't alerted twice; scores and simulations
+    of the loser are dropped and recomputed. The loser row is deleted and audited in
+    `property_merge`.
+
+48. **Same-site reposts are dedupe merges too.** The "relisted > 3×" flag now counts relists plus
+    extra same-site ads for one flat.
+
+49. **Stage order: enrich → dedupe → analyze (index, simulation, scores) → alerts.** Simulation
+    moved to `analyze` so it uses the merged property's cheapest listing.
+
+50. **No automatic un-merge.** `radar dupes` lists merges for the manual 10-pair check and
+    `radar merge A B` forces one. A wrong auto-merge would need an un-merge command (v2) or a
+    threshold change plus a re-ingest.

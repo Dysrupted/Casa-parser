@@ -35,6 +35,7 @@ class CacheTTL(BaseModel):
     detail: float
     robots: float
     api: float
+    photo: float = 2160
 
 
 class HttpConfig(BaseModel):
@@ -68,7 +69,10 @@ class SourceConfig(BaseModel):
     pagination: str
     max_pages: int = Field(ge=1)
     fetch_details: bool = True
-    selectors: dict[str, list[str]]
+    fetcher: Literal["http", "playwright"] = "http"   # playwright only for JS-rendered sites
+    id_pattern: str = r"(\d{5,})"                       # regex on the listing URL; group 1 = external id
+    selectors: dict[str, list[str]] = {}
+    embedded_json: dict | None = None                   # JSON-embedded sites (e.g. __NEXT_DATA__)
 
 
 class SourcesFile(BaseModel):
@@ -157,6 +161,26 @@ class AlertsConfig(BaseModel):
     max_send_attempts: int = Field(ge=1)
 
 
+class DedupeCandidate(BaseModel):
+    same_zone: bool = True
+    surface_tolerance_m2: float = Field(ge=0)
+    price_tolerance_pct: float = Field(ge=0, lt=1)
+
+
+class DedupeConfirm(BaseModel):
+    phash_max_distance: int = Field(ge=0, le=64)
+    photos_per_listing: int = Field(ge=0)
+    description_min_similarity: float = Field(ge=0, le=1)
+    description_min_chars: int = Field(ge=0)
+
+
+class DedupeConfig(BaseModel):
+    enabled: bool
+    candidate: DedupeCandidate
+    confirm: DedupeConfirm
+    recheck_rejected_after_days: int = Field(ge=1)
+
+
 def strip_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
@@ -209,6 +233,7 @@ class Settings:
         self.financing = FinancingParams(**self._load("financing.yaml"))
         self.scoring = self._load("scoring.yaml")
         self.alerts = AlertsConfig(**self._load("alerts.yaml"))
+        self.dedupe = DedupeConfig(**self._load("dedupe.yaml"))
         self.telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN") or None
         self.telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID") or None
         _validate_scoring(self.scoring)

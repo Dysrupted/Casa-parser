@@ -13,10 +13,13 @@ dependencies = [
   "python-dotenv>=1",
   "alembic>=1.13",
   "anthropic>=2.8",
+  "imagehash>=4.3",
+  "pillow>=10",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "respx>=0.21"]
+playwright = ["playwright>=1.40"]
 
 [project.scripts]
 radar = "radar.cli:app"

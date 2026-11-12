@@ -12,7 +12,7 @@ Spec: PRD "Casa Radar" (v1). Decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 | M3 | Simulation (workbook port) | ✅ engine built — needs workbook rates + reference cases |
 | M4 | Zone index + scoring | ✅ built |
 | M5 | Telegram alerts | ✅ built — needs bot token |
-| M6 | Avito, Sarouty + dedupe | ⏳ |
+| M6 | Avito, Sarouty + dedupe | ✅ built — verify sources on live sites |
 | M7 | Dashboard + watchlist + `/api/goal` | ⏳ |
 
 ## Telegram setup
@@ -44,6 +44,8 @@ radar top -n 10           # best in-profile listings with "why this score"
 radar watch <id|url>      # watchlist (price drops + removal alerts)
 radar note <id|url> --status rejected --reason "ground floor"   # silences alerts, feeds v2 tuning
 radar alert-test          # check TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
+radar dupes               # recent merges with all source links (M6 manual check)
+radar merge <a> <b>       # force-merge two properties the matcher missed
 radar record-fixture "<url>" tests/fixtures/mubawab/search_p1.html   # capture a test fixture
 ```
 
@@ -62,12 +64,12 @@ Exit code is non-zero only if every source failed.
 config/          search_profile.yaml · zones.yaml (alias table) · sources.yaml (http, pipeline, selectors)
                  enrich.yaml (LLM, geo centroids + Corniche polyline, FX)
                  financing.yaml (workbook rates) · scoring.yaml (weights, anchors, penalties)
-                 alerts.yaml (threshold, triggers, quiet hours, digest)
+                 alerts.yaml (threshold, triggers, quiet hours, digest) · dedupe.yaml
 radar/
   config.py      typed YAML loading (pydantic), zone resolver
   http.py        PoliteFetcher — robots.txt, ≥3 s randomized delay, disk cache, retries
   models.py      property · listing · listing_snapshot · listing_event · run
-  sources/       Source ABC (generic paginated crawl) + mubawab.py
+  sources/       Source ABC · html_cards.py (config-driven) · mubawab · sarouty · avito (__NEXT_DATA__)
   pipeline/run.py  crawl → upsert → detail fetch → snapshot → missing/removed detection
   pipeline/enrich.py  FX → rules + LLM features → geo (fail-soft per step)
   normalize/     schema.py (strict extraction schema + span verification) · rules.py · extract.py
@@ -75,7 +77,8 @@ radar/
   enrich/        geo.py (precision ladder, Corniche distance) · fx.py
   market/index.py  per-zone asking-price/m² index
   scoring/       score.py (pure, explainable) · store.py (DB loader, daily rows)
-  pipeline/analyze.py  index → scores
+  dedupe/        similarity (bigram Jaccard, pHash) · merge · stage
+  pipeline/analyze.py  index → simulation → scores
   alerts/        engine.py (selection, idempotent queue, quiet hours) · telegram.py (client, formatting)
   simulation/    params.py (config model) · engine.py (pure, Decimal) · store.py (per-listing)
   migrations/    Alembic
@@ -86,7 +89,7 @@ data/            radar.db, cache/, raw/ (gitignored)
 
 ## Adding a source
 
-1. Subclass `radar.sources.base.Source`, implement `parse_search_page` and `parse_detail_page`.
-2. Register it in `radar/sources/__init__.py`.
-3. Add a block in `config/sources.yaml` (URLs, pagination, selectors).
-4. Record fixtures, write parser tests.
+Server-rendered site: subclass `HtmlCardSource` (3 lines, set `name`), register it in
+`radar/sources/__init__.py`, add a YAML block (URLs, pagination, `id_pattern`, selectors).
+JSON-embedded site: same, but with `AvitoSource`'s `embedded_json` paths. JS-only site: add
+`fetcher: playwright`. In all cases, record fixtures and write parser tests.

@@ -15,6 +15,7 @@ from radar.enrich.fx import rate_for
 from radar.llm.provider import build_provider
 from radar.models import Listing, ListingEvent, Property, PropertyFeature, Run, Status
 from radar.alerts.engine import AlertStage
+from radar.dedupe.stage import Deduper
 from radar.pipeline.analyze import Analyzer
 from radar.pipeline.enrich import Enricher
 from radar.pipeline.run import Pipeline, build_sources
@@ -45,7 +46,7 @@ def run(source: list[str] = typer.Option(None, "--source", "-s", help="Limit to 
     alerts = AlertStage(s)
     enricher.notify = alerts.buffer_error
     result = Pipeline(s, engine, build_sources(s, fetcher, source), notify=alerts.buffer_error,
-                      stages=[enricher, Analyzer(s), alerts]).run()
+                      stages=[enricher, Deduper(s, fetcher), Analyzer(s), alerts]).run()
     typer.echo(json.dumps({"run_id": result.id, "status": result.status, "stats": result.stats}, indent=2))
     raise typer.Exit(0 if result.status != "failed" else 1)
 
@@ -259,6 +260,34 @@ def alert_test() -> None:
         typer.echo(f"failed: {e}")
         raise typer.Exit(1)
     typer.echo("sent")
+
+
+@app.command()
+def dupes(n: int = typer.Option(20, "-n")) -> None:
+    """Recent merges with their listings' URLs: the M6 manual check (10 known pairs)."""
+    from radar.models import PropertyMerge
+
+    _, engine = _ctx()
+    with Session(engine) as db:
+        for m in db.exec(select(PropertyMerge).order_by(PropertyMerge.merged_at.desc()).limit(n)):
+            typer.echo(f"#{m.survivor_id} <- #{m.loser_id}  {m.reason}  {m.merged_at:%Y-%m-%d}")
+            for l in db.exec(select(Listing).where(Listing.property_id == m.survivor_id)):
+                typer.echo(f"    {l.source:8} {l.price_mad or 0:>10,} MAD {l.surface_m2 or 0:>5g} m²  {l.url}")
+
+
+@app.command()
+def merge(a: str, b: str) -> None:
+    """Manually merge two properties (ids or listing URLs) the matcher missed."""
+    from datetime import datetime, timezone
+
+    from radar.dedupe.merge import merge_properties
+
+    _, engine = _ctx()
+    with Session(engine) as db:
+        keep = merge_properties(db, _resolve_property(db, a), _resolve_property(db, b), "manual",
+                                datetime.now(timezone.utc))
+        db.commit()
+    typer.echo(f"merged into property {keep}")
 
 
 if __name__ == "__main__":

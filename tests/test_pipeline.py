@@ -211,20 +211,21 @@ def test_llm_unavailable_degrades_to_rules(settings, engine, clock):
 
 def test_pipeline_simulates_priced_listings(settings, engine, clock):
     from radar.models import Simulation
+    from radar.pipeline.analyze import Analyzer
     from radar.pipeline.enrich import Enricher
     from radar.simulation import FinancingParams
     from tests.test_simulation import SYNTH
 
     fetcher = FakeFetcher(default_pages())
-    enr = Enricher(settings, fetcher, None)
+    enr = [Enricher(settings, fetcher, None), Analyzer(settings)]
     src = MubawabSource(settings.sources["mubawab"], fetcher)
     # shipped config: rates missing -> skipped, never guessed
-    run = Pipeline(settings, engine, [src], now=clock, stages=[enr]).run()
-    assert run.stats["enrich"]["simulation"]["status"] == "skipped"
+    run = Pipeline(settings, engine, [src], now=clock, stages=enr).run()
+    assert run.stats["analyze"]["simulation"]["status"] == "skipped"
 
     settings.financing = FinancingParams(**SYNTH)
-    run = Pipeline(settings, engine, [src], now=clock, stages=[enr]).run()
-    assert run.stats["enrich"]["simulation"]["simulated"] == 3      # 'Prix à consulter' excluded
+    run = Pipeline(settings, engine, [src], now=clock, stages=enr).run()
+    assert run.stats["analyze"]["simulation"]["simulated"] == 3      # 'Prix à consulter' excluded
     with Session(engine) as db:
         sims = {s.price_mad: s for s in db.exec(select(Simulation))}
     a = sims[2_650_000].outputs

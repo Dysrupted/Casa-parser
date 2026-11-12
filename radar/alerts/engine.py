@@ -75,6 +75,9 @@ class AlertStage:
                 l = best_listing(db, prop.id)
                 if prop.status == Status.removed or l is None or prop.id in rejected:
                     continue
+                if db.exec(select(AlertLog).where(AlertLog.type == "new_high_score",
+                                                  AlertLog.property_id == prop.id)).first():
+                    continue  # already alerted (possibly under a property merged into this one)
                 if self._queue(db, f"new_high_score:{prop.id}", "new_high_score",
                                listing_payload(db, self.s, prop, l, today), now, prop.id):
                     q["new_high_score"] += 1
