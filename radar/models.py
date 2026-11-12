@@ -218,3 +218,12 @@ class PropertyMerge(SQLModel, table=True):
     loser_id: int
     reason: str
     merged_at: datetime
+
+
+class Goal(SQLModel, table=True):
+    """Purchase target consumed by the Finance Cockpit (PRD F9). Single row, id = 1."""
+    id: int = Field(default=1, primary_key=True)
+    property_id: int | None = Field(default=None, foreign_key="property.id")
+    manual_price_mad: int | None = None      # used when no property is selected
+    agency_listing: bool = False             # only for manual prices
+    updated_at: datetime

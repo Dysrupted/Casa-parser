@@ -290,5 +290,37 @@ def merge(a: str, b: str) -> None:
     typer.echo(f"merged into property {keep}")
 
 
+@app.command()
+def serve(host: str = typer.Option("127.0.0.1"), port: int = typer.Option(8000),
+          insecure: bool = typer.Option(False, help="Allow a public bind without any credentials")) -> None:
+    """Dashboard + API. Set RADAR_DASHBOARD_PASSWORD (and RADAR_API_TOKEN) before exposing it."""
+    import os
+
+    import uvicorn
+
+    from radar.api.app import create_app
+
+    s, engine = _ctx()
+    creds = any(os.environ.get(k) for k in ("RADAR_DASHBOARD_PASSWORD", "RADAR_API_TOKEN", "RADAR_SHARE_TOKEN"))
+    if host not in ("127.0.0.1", "localhost", "::1") and not creds and not insecure:
+        typer.echo("Refusing to bind publicly without RADAR_DASHBOARD_PASSWORD / RADAR_API_TOKEN (or --insecure).")
+        raise typer.Exit(2)
+    uvicorn.run(create_app(s, engine), host=host, port=port)
+
+
+@app.command("set-goal")
+def set_goal_cmd(ref: str = typer.Argument(None, help="Property id or listing URL"),
+                 price: int = typer.Option(None, help="Manual target price (MAD) instead of a listing"),
+                 agency: bool = typer.Option(False)) -> None:
+    """Set the purchase target exposed at GET /api/goal (Finance Cockpit)."""
+    from radar.api import queries as Q
+
+    s, engine = _ctx()
+    with Session(engine) as db:
+        pid = _resolve_property(db, ref) if ref else None
+        Q.set_goal(db, pid, price, agency)
+        typer.echo(json.dumps(Q.goal(db, s), indent=2))
+
+
 if __name__ == "__main__":
     app()

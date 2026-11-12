@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ d.title or "Listing" }} · Casa Radar{% endblock %}
+{% block body %}
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <div class="grow"><h2 style="margin:0 0 4px">{{ d.title or "Listing #%d"|format(d.id) }}</h2>
+      <div class="num"><b>{{ d.price_mad|mad }} MAD</b>{% if d.price_eur %} · {{ d.price_eur|mad }} €{% endif %}
+        · {{ d.surface_m2 or "?" }} m² · {{ d.rooms or "?" }} rooms · {{ d.bedrooms or "?" }} bedrooms</div>
+      <div><span class="chip">{{ d.zone_label }}</span><span class="chip">{{ d.dom }} days on market</span>
+        {% if d.dist_corniche_m is not none %}<span class="chip">{{ d.dist_corniche_m|mad }} m to Corniche{% if d.geo_precision == "zone" %} (approx.){% endif %}</span>{% endif %}
+        {% if d.status == "removed" %}<span class="chip bad">removed</span>{% endif %}</div>
+    </div>
+    {% if d.score %}<div class="score {{ 'good' if d.score.total >= 75 }}">{{ "%.0f"|format(d.score.total) }}</div>{% endif %}
+  </div>
+  {% if d.photos %}<div class="photos" style="margin-top:10px">{% for p in d.photos %}<img src="{{ p }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endfor %}</div>{% endif %}
+  <p>{% for l in d.listings %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.source }} ↗</a>
+     <span class="muted num">{{ l.price_mad|mad }}{% if l.status != "active" %} · {{ l.status }}{% endif %}{% if l.agency %} · {{ l.agency }}{% endif %}</span>&nbsp; {% endfor %}</p>
+</div>
+
+{% if not readonly %}
+<div class="card">
+  <form method="post" action="/p/{{ d.id }}/note" class="filters">
+    <select name="status">{% for s in statuses %}<option {% if d.note and d.note.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+    <input name="note" placeholder="note" value="{{ d.note.note if d.note and d.note.note else '' }}" style="flex:1;min-width:160px">
+    <input name="reject_reason" placeholder="reject reason" value="{{ d.note.reject_reason if d.note and d.note.reject_reason else '' }}">
+    <input name="actual_sale_price_mad" inputmode="numeric" placeholder="sale price heard" value="{{ d.note.actual_sale_price_mad if d.note and d.note.actual_sale_price_mad else '' }}" size="12">
+    <button>{{ "Update" if d.note else "★ Watch" }}</button>
+    {% if d.note %}<button class="ghost" name="remove" value="1">Remove</button>{% endif %}
+  </form>
+  <form method="post" action="/p/{{ d.id }}/goal" style="margin-top:8px">
+    {% if is_goal %}<span class="chip good">🎯 current goal (Finance Cockpit)</span>{% else %}<button class="ghost">🎯 Set as goal</button>{% endif %}
+  </form>
+</div>
+{% endif %}
+
+{% if d.score %}
+<div class="card"><h3 style="margin-top:0">Why this score</h3>
+  <table>{% for f in d.score.factors %}
+    <tr><td style="width:40%">{{ f.name.replace("_"," ") }}<div class="bar"><i style="width:{{ ((f.points / f.weight * 100) if f.weight else 0)|round }}%"></i></div></td>
+        <td class="num">{{ "%.1f"|format(f.points) }} / {{ "%.0f"|format(f.weight) }}</td>
+        <td>{{ f.reason }}{% if f.value is none %} <span class="muted">(neutral)</span>{% endif %}</td></tr>
+  {% endfor %}
+  {% if d.score.penalty %}<tr><td>data quality</td><td class="num bad">−{{ d.score.penalty }}</td><td>{{ d.score.penalty_reasons|join(", ") }}</td></tr>{% endif %}
+  </table>
+  {% for n in d.score.flags + d.score.profile_notes %}<span class="chip bad">{{ n }}</span>{% endfor %}
+  {% if d.zone_index %}<p class="muted">Zone asking price: median {{ d.zone_index.median_m2|mad }} · p25 {{ d.zone_index.p25|mad }} · p75 {{ d.zone_index.p75|mad }} MAD/m² · n={{ d.zone_index.count }}{% if not d.zone_index.reliable %} (unreliable){% endif %}</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="card"><h3 style="margin-top:0">Purchase simulation</h3>
+{% set s = d.simulation %}
+{% if s and s.ok %}
+  <div class="kpis">
+    <div class="kpi"><span class="muted">Cash needed</span><b class="num">{{ s.total_cash_needed_mad|mad }} MAD</b>{% if s.total_cash_needed_eur %}<span class="muted">{{ s.total_cash_needed_eur|mad }} €</span>{% endif %}</div>
+    <div class="kpi"><span class="muted">Monthly</span><b class="num">{{ s.monthly_payment_mad|mad }} MAD</b><span class="muted">incl. {{ s.monthly_insurance_mad|mad }} insurance</span></div>
+    <div class="kpi"><span class="muted">All-in price</span><b class="num">{{ s.all_in_price_mad|mad }} MAD</b>{% if s.all_in_price_eur_band %}<span class="muted">{{ s.all_in_price_eur_band[0]|mad }}–{{ s.all_in_price_eur_band[1]|mad }} €</span>{% endif %}</div>
+    <div class="kpi"><span class="muted">Cost of credit</span><b class="num">{{ s.total_cost_of_credit_mad|mad }} MAD</b></div>
+  </div>
+  <table style="margin-top:8px">{% for k, v in s.cost_breakdown_mad.items() %}<tr><td>{{ k.replace("_"," ") }}</td><td class="num">{{ v|mad }} MAD</td></tr>{% endfor %}</table>
+{% elif s %}<p class="muted">Missing in config/financing.yaml: {{ s.missing_params|join(", ") }}</p>
+{% else %}<p class="muted">Not simulated yet.</p>{% endif %}
+</div>
+
+<div class="card"><h3 style="margin-top:0">Price history</h3>
+{% for src, pts in d.history.items() %}
+  <div class="muted">{{ src }} · {{ pts[0].date }} → {{ pts[-1].date }} · {{ pts[0].price_mad|mad }} → {{ pts[-1].price_mad|mad }} MAD</div>
+  {{ svg_line(pts, "price_mad")|safe }}
+{% else %}<p class="muted">No snapshots.</p>{% endfor %}
+</div>
+
+<div class="card"><h3 style="margin-top:0">Extracted features</h3>
+  <table><tr><th>field</th><th>value</th><th>conf.</th><th class="hide-sm">by</th><th class="hide-sm">evidence</th></tr>
+  {% for f in d.features %}<tr><td>{{ f.field }}</td><td>{{ f.value }}</td><td class="num">{{ "%.2f"|format(f.confidence) }}</td>
+    <td class="hide-sm muted">{{ f.by }}</td><td class="hide-sm muted">{{ f.span or "" }}</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">Nothing extracted.</td></tr>{% endfor %}</table>
+  {% if d.description %}<details style="margin-top:8px"><summary>Description</summary><p>{{ d.description }}</p></details>{% endif %}
+</div>
+{% endblock %}

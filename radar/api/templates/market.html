@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Market · Casa Radar{% endblock %}
+{% block body %}
+<p class="muted">Asking-price index (not transaction prices). One price per property, outliers removed.</p>
+{% for z in zones_data %}
+<div class="card">
+  <h3 style="margin:0 0 6px">{{ z.zone_label }}</h3>
+  {% if z.current %}
+  <div class="kpis">
+    <div class="kpi"><span class="muted">Median MAD/m²</span><b class="num">{{ z.current.median_m2|mad }}</b><span class="muted">p25 {{ z.current.p25|mad }} · p75 {{ z.current.p75|mad }}</span></div>
+    <div class="kpi"><span class="muted">Trend</span><b class="num">{{ z.current.trend_30d|pct }}</b><span class="muted">30 d · 90 d {{ z.current.trend_90d|pct }}</span></div>
+    <div class="kpi"><span class="muted">Inventory</span><b class="num">{{ z.inventory }}</b><span class="muted">n={{ z.current.count }}{% if not z.current.reliable %} · unreliable{% endif %}</span></div>
+    <div class="kpi"><span class="muted">Median days on market</span><b class="num">{{ z.median_dom if z.median_dom is not none else "—" }}</b></div>
+  </div>
+  {{ svg_line(z.series, "median_m2")|safe }}
+  {% else %}<p class="muted">No data yet.</p>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

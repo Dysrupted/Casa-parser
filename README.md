@@ -13,7 +13,18 @@ Spec: PRD "Casa Radar" (v1). Decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 | M4 | Zone index + scoring | ✅ built |
 | M5 | Telegram alerts | ✅ built — needs bot token |
 | M6 | Avito, Sarouty + dedupe | ✅ built — verify sources on live sites |
-| M7 | Dashboard + watchlist + `/api/goal` | ⏳ |
+| M7 | Dashboard + watchlist + `/api/goal` | ✅ built |
+
+## Dashboard on a VPS
+
+```bash
+export RADAR_DASHBOARD_PASSWORD=...   # HTTP Basic (any username) — phone-friendly
+export RADAR_API_TOKEN=...            # Bearer for /api/* (Finance Cockpit)
+export RADAR_SHARE_TOKEN=...          # optional read-only family link: /?share=<token>
+radar serve --host 0.0.0.0 --port 8000   # put Caddy/nginx with HTTPS in front
+```
+
+Finance Cockpit: `curl -H "Authorization: Bearer $RADAR_API_TOKEN" https://<host>/api/goal`
 
 ## Telegram setup
 
@@ -46,6 +57,8 @@ radar note <id|url> --status rejected --reason "ground floor"   # silences alert
 radar alert-test          # check TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
 radar dupes               # recent merges with all source links (M6 manual check)
 radar merge <a> <b>       # force-merge two properties the matcher missed
+radar serve               # dashboard on http://127.0.0.1:8000 (API docs at /api/docs)
+radar set-goal <id|url>   # or --price 2500000: target exposed at GET /api/goal
 radar record-fixture "<url>" tests/fixtures/mubawab/search_p1.html   # capture a test fixture
 ```
 
@@ -77,6 +90,7 @@ radar/
   enrich/        geo.py (precision ladder, Corniche distance) · fx.py
   market/index.py  per-zone asking-price/m² index
   scoring/       score.py (pure, explainable) · store.py (DB loader, daily rows)
+  api/           app.py (FastAPI, auth, HTML + JSON) · queries.py (read models) · templates/
   dedupe/        similarity (bigram Jaccard, pHash) · merge · stage
   pipeline/analyze.py  index → simulation → scores
   alerts/        engine.py (selection, idempotent queue, quiet hours) · telegram.py (client, formatting)
