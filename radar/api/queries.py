@@ -12,7 +12,8 @@ from radar.market.index import latest_index
 from radar.models import (Goal, Listing, ListingSnapshot, Property, PropertyFeature, Score, Simulation, Status,
                           UserNote, ZoneIndex)
 from radar.scoring.store import best_listing, latest_score
-from radar.simulation import simulate
+from radar.simulation import compare_scenarios, simulate
+from radar.simulation.store import is_agency_listing
 
 SORTS = {"score", "price", "price_vs_zone", "dom", "price_m2", "new"}
 
@@ -52,7 +53,14 @@ def listing_rows(db: Session, s: Settings, zone: str | None = None, min_score: f
         if in_profile is not None and (sc is None or sc.in_profile != in_profile):
             continue
         sources = db.exec(select(Listing.source).where(Listing.property_id == p.id)).all()
+        agency = is_agency_listing(db, l, s.llm.min_confidence)
+        sim = simulate(l.price_mad, s.financing, agency, rate) if l.price_mad else None
         rows.append({
+            "agency_listing": agency,
+            "cash_needed_mad": sim.total_cash_needed_mad if sim else None,
+            "monthly_payment_mad": sim.monthly_payment_mad if sim else None,
+            "required_income_mad": sim.required_income_mad if sim else None,
+            "required_income_eur": sim.required_income_eur if sim else None,
             "id": p.id, "title": l.title, "url": l.url, "zone": p.zone, "zone_label": _zone_label(p.zone),
             "price_mad": l.price_mad, "price_eur": to_eur(l.price_mad, rate), "surface_m2": l.surface_m2,
             "price_m2": round(l.price_mad / l.surface_m2) if l.price_mad and l.surface_m2 else None,
@@ -159,6 +167,8 @@ def goal(db: Session, s: Settings) -> dict:
         "total_cash_needed_mad": sim_out.get("total_cash_needed_mad"),
         "total_cash_needed_eur": sim_out.get("total_cash_needed_eur"),
         "monthly_payment_mad": sim_out.get("monthly_payment_mad"),
+        "scenario": sim_out.get("scenario"), "required_income_mad": sim_out.get("required_income_mad"),
+        "required_income_eur": sim_out.get("required_income_eur"),
         "all_in_price_mad": sim_out.get("all_in_price_mad"), "all_in_price_eur": sim_out.get("all_in_price_eur"),
     }
 
@@ -173,3 +183,41 @@ def set_goal(db: Session, property_id: int | None, manual_price_mad: int | None,
     g.updated_at = datetime.now(timezone.utc)
     db.add(g)
     db.commit()
+
+
+def calc_config(fp) -> dict:
+    """Config half of the input of templates/finance_calc.js (cost lines + affordability)."""
+    lines = [{"key": k, "label": l.label or k.replace("_", " ").capitalize(), "base": l.base, "rate": l.rate,
+              "tiers": [t.model_dump() for t in l.tiers] if l.tiers else None, "fixed": l.fixed_mad or 0,
+              "min": l.min_mad, "max": l.max_mad, "vat": l.vat_rate or 0, "applies": l.applies}
+             for k, l in fp.acquisition_costs.items() if l.applies != "never"]
+    return {"lines": lines, "max_debt_ratio": fp.affordability.max_debt_ratio,
+            "existing_monthly_debt_eur": fp.affordability.existing_monthly_debt_eur,
+            "decimals": fp.rounding.decimals}
+
+
+def financing_view(s: Settings, eur: float | None, ref_price_mad: float | None) -> dict:
+    """Everything the public page needs to explain and recompute "what it takes to buy".
+
+    `calc` is the input of templates/finance_calc.js (same formula as radar.simulation.engine).
+    """
+    fp = s.financing
+    ok = not fp.missing()
+    scenarios = []
+    for row in (compare_scenarios(ref_price_mad, fp, False, eur) if ok and ref_price_mad else []):
+        f = fp.for_scenario(row["scenario"]).financing
+        scenarios.append(row | {"insurance_mode": f.insurance.mode, "interest_vat_rate": f.interest_vat_rate,
+                                "bank_fees_mad": f.bank_fees_mad,
+                                "finance_acquisition_costs": f.finance_acquisition_costs})
+    seen, sources = set(), []
+    for path, src in fp.sources.items():
+        if src.url not in seen:
+            seen.add(src.url)
+            sources.append({"what": path.split(".")[-1].replace("_", " "), "url": src.url, "date": src.date,
+                            "confidence": src.confidence})
+    return {
+        "ok": ok and bool(scenarios), "missing_params": fp.missing(), "eur_mad": eur,
+        "ref_price_mad": ref_price_mad, "default_scenario": fp.default_scenario, "scenarios": scenarios,
+        "calc": calc_config(fp) if ok else None,
+        "ownership": fp.ownership.model_dump(), "sources": sources,
+    }

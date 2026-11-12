@@ -95,11 +95,44 @@ def test_missing_params_refuse_to_run():
     assert r.monthly_payment_mad is None
 
 
-def test_shipped_config_has_no_invented_rates():
-    """Guard: until the workbook values are entered, the shipped config must refuse to simulate."""
+def _numeric_leaves(node, path=""):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield from _numeric_leaves(v, f"{path}.{k}" if path else str(k))
+    elif isinstance(node, (list, tuple)):
+        for i, v in enumerate(node):
+            yield from _numeric_leaves(v, f"{path}.{i}")
+    elif isinstance(node, (int, float)) and not isinstance(node, bool):
+        yield path, node
+
+
+def test_shipped_config_values_are_all_sourced():
+    """Guard: no invented rates. Every non-zero figure in the shipped config must be covered by a
+    `sources:` entry (its own path or a parent path) carrying a URL, a date and a confidence."""
     p = load_params(ROOT / "config" / "financing.yaml")
+    assert p.missing() == []                       # the shipped defaults are complete
+    for src in p.sources.values():
+        assert src.url.startswith("https://") and src.date and src.confidence in ("high", "medium", "low")
+    dump = p.model_dump()
+    unsourced = []
+    for section in ("acquisition_costs", "financing", "scenarios", "affordability", "ownership"):
+        for path, value in _numeric_leaves(dump[section], section):
+            covered = any(path == k or path.startswith(k + ".") for k in p.sources)
+            if value and not covered:
+                unsourced.append(path)
+    assert unsourced == [], f"add a sources: entry for {unsourced}"
+    assert all(k.split(".")[0] in dump for k in p.sources), "sources: key pointing at nothing"
+
+
+def test_incomplete_config_still_refuses_to_run():
+    d = yaml.safe_load((ROOT / "config" / "financing.yaml").read_text())
+    d["scenarios"][d["default_scenario"]]["annual_rate"] = None
+    d["financing"]["annual_rate"] = None
+    d["acquisition_costs"]["registration_duties"]["rate"] = None
+    p = FinancingParams(**d)
     assert "financing.annual_rate" in p.missing()
     assert "acquisition_costs.registration_duties.rate" in p.missing()
+    assert not simulate(2_000_000, p).ok
 
 
 _CASES = yaml.safe_load((ROOT / "tests/fixtures/simulation/reference_cases.yaml").read_text())["cases"] or []

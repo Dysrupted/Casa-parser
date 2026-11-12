@@ -304,3 +304,45 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
     table headers. Tables turn into cards on phones, the sort control and filters are tap-sized buttons,
     and a statistics table backs the chart. Off-scale prices (site typos like 245 000 MAD/m²) are pinned
     to the chart edge so they don't flatten every box.
+
+## Purchase financing (2026-11-12)
+
+71. **`config/financing.yaml` now ships researched market defaults instead of nulls.** The workbook
+    values never arrived, and a simulation that refuses to run answers nothing. Each figure has an
+    entry under `sources:` (URL, date, confidence) and a test fails if a non-zero value has none;
+    a null still makes the simulation refuse. The research and its limits are in
+    `docs/research/morocco-purchase-financing.md`: it was done through search extracts only
+    (official sites were unreachable from the session), so most bank and notary figures are low
+    confidence and must be replaced by the bank's offer and the notary's fee note.
+
+72. **Scenarios are partial overrides of the `financing` block**, with `default_scenario` naming
+    the one the pipeline, the dashboard and the public page use ("MRE – typical bank"). A config
+    without scenarios behaves as before. Four ship: MRE typical / best case / cautious, and Morocco
+    resident.
+
+73. **Quoted rates are before tax: `interest_vat_rate` (10 %) is applied on top.** Moroccan banks
+    advertise rates "HT" and add VAT on interest, so 4.80 % costs 5.28 %. Kept as a separate
+    parameter (default 0) so a bank quote given tax-included can be entered as is.
+
+74. **Cost lines accept progressive `tiers`.** Mortgage registration is 0.5 % up to 250 000 MAD,
+    1.5 % to 5 M, 0.5 % above; a single rate could not express that.
+
+75. **Affordability = two constraints** (`radar/simulation/affordability.py`): cash at signing
+    ≤ savings with the down payment at least the scenario minimum (MRE: 20 %, the Office des
+    Changes 80 % loan ceiling), and payment + existing debts ≤ `max_debt_ratio` (40 %) × net
+    income. `max_price` searches whole dirhams and puts every spare dirham of savings into the down
+    payment, since that minimises the payment. Income is entered in EUR and converted at the day's
+    rate; banks' possible haircut on foreign income is not modelled.
+
+76. **Income needed uses the first month's payment** (instalment + insurance). With insurance on
+    outstanding capital the payment declines slightly afterwards, so this is the conservative figure.
+
+77. **The page calculator is a separate file, `templates/finance_calc.js`, included into
+    `site.html`,** so a test can run it under node against the Python engine on 54 cases and
+    require identical dirham amounts. The expected values live in a JSON fixture that Python is
+    also checked against, so the guard still works where node is missing.
+
+78. **Per-listing cash / monthly payment / income needed on the page come from Python**, computed
+    when `radar site` runs with the default scenario and the listing's agency flag; only the
+    interactive calculator computes in the browser.
+

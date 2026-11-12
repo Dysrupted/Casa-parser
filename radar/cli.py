@@ -143,23 +143,110 @@ def record_fixture(url: str, out: Path = typer.Argument(..., help="e.g. tests/fi
 @app.command("simulate")
 def simulate_cmd(price: float = typer.Argument(..., help="Price in MAD"),
                  agency: bool = typer.Option(False, help="Listing sold through an agency"),
-                 eur_mad: float = typer.Option(None, help="Override EUR/MAD (default: latest stored)")) -> None:
+                 eur_mad: float = typer.Option(None, help="Override EUR/MAD (default: latest stored)"),
+                 scenario: str = typer.Option(None, help="Financing scenario from config/financing.yaml "
+                                                         "(default: default_scenario)"),
+                 compare: bool = typer.Option(True, help="Also print every scenario side by side")) -> None:
     """Simulate the all-in cost of buying at PRICE with config/financing.yaml."""
-    from datetime import date
+    from radar.simulation import compare_scenarios, simulate
 
-    from radar.simulation import simulate
-
-    s, engine = _ctx()
-    if eur_mad is None:
-        with Session(engine) as db:
-            eur_mad = rate_for(db, s.fx, date.today())
-    res = simulate(price, s.financing, agency_listing=agency, eur_mad=eur_mad)
+    s, eur_mad = _fin_ctx(eur_mad, scenario)
+    res = simulate(price, s.financing, agency_listing=agency, eur_mad=eur_mad, scenario=scenario)
     if not res.ok:
-        typer.echo("Missing parameters in config/financing.yaml (copy them from the workbook):")
+        typer.echo("Missing parameters in config/financing.yaml:")
         for m in res.missing_params:
             typer.echo(f"  - {m}")
         raise typer.Exit(2)
     typer.echo(json.dumps(res.to_dict(), indent=2))
+    if compare and s.financing.scenarios:
+        typer.echo("")
+        typer.echo(_scenario_table(compare_scenarios(price, s.financing, agency, eur_mad)))
+
+
+def _fin_ctx(eur_mad: float | None, scenario: str | None):
+    """Settings + EUR/MAD (latest stored unless overridden); rejects an unknown scenario name."""
+    s, engine = _ctx()
+    if scenario is not None and scenario not in s.financing.scenarios:
+        raise typer.BadParameter(f"unknown scenario {scenario!r}; known: {', '.join(s.financing.scenarios) or 'none'}")
+    if eur_mad is None:
+        from radar.api.queries import today_local
+
+        with Session(engine) as db:
+            eur_mad = rate_for(db, s.fx, today_local(s))
+    return s, eur_mad
+
+
+def _n(x, suffix: str = "") -> str:
+    return "-" if x is None else f"{x:,.0f}".replace(",", " ") + suffix
+
+
+def _scenario_table(rows: list[dict]) -> str:
+    """Scenarios side by side: one column each."""
+    spec = [("Rate (before tax)", lambda r: f"{r['annual_rate']:.2%}"),
+            ("Rate incl. tax", lambda r: f"{r['annual_rate_effective']:.2%}" if r["ok"] else "-"),
+            ("Duration", lambda r: f"{r['duration_years']} years"),
+            ("Down payment", lambda r: f"{r['down_payment_pct']:.0%}"),
+            ("Loan", lambda r: _n(r["loan_amount_mad"], " MAD")),
+            ("Acquisition costs", lambda r: _n(r["acquisition_costs_mad"], " MAD")),
+            ("Cash at signing", lambda r: _n(r["total_cash_needed_mad"], " MAD")),
+            ("  in EUR", lambda r: _n(r["total_cash_needed_eur"], " EUR")),
+            ("Monthly payment", lambda r: _n(r["monthly_payment_mad"], " MAD")),
+            ("Income needed / month", lambda r: _n(r["required_income_mad"], " MAD")),
+            ("  in EUR", lambda r: _n(r["required_income_eur"], " EUR")),
+            ("Total cost of credit", lambda r: _n(r["total_cost_of_credit_mad"], " MAD"))]
+    cols = [[r["label"] + (" *" if r["is_default"] else "")] + [fn(r) for _, fn in spec] for r in rows]
+    names = [""] + [n for n, _ in spec]
+    w0, ws = max(map(len, names)), [max(map(len, c)) for c in cols]
+    out = ["  ".join([names[i].ljust(w0)] + [c[i].rjust(w) for c, w in zip(cols, ws)]) for i in range(len(names))]
+    return "\n".join(out + ["* default scenario. Market defaults, not a bank quote (see config/financing.yaml)."])
+
+
+@app.command()
+def afford(income_eur: float = typer.Option(None, "--income-eur", help="Monthly net income in EUR "
+                                            "(default: affordability.monthly_net_income_eur)"),
+           savings_mad: float = typer.Option(..., "--savings-mad", help="Cash available at signing, MAD"),
+           scenario: str = typer.Option(None, help="Financing scenario (default: all of them)"),
+           agency: bool = typer.Option(False, help="Assume the flat is sold through an agency"),
+           eur_mad: float = typer.Option(None, help="Override EUR/MAD (default: latest stored)")) -> None:
+    """Highest price you can afford, and whether cash or income is what limits it."""
+    from radar.simulation import max_price
+
+    s, eur_mad = _fin_ctx(eur_mad, scenario)
+    fp = s.financing
+    income_eur = income_eur if income_eur is not None else fp.affordability.monthly_net_income_eur
+    if income_eur is not None and not eur_mad:
+        typer.echo("No EUR/MAD rate stored yet: pass --eur-mad.")
+        raise typer.Exit(2)
+    why = {"cash": "cash: savings cover no bigger down payment + fees",
+           "income": f"income: payment at the {fp.affordability.max_debt_ratio:.0%} debt-ratio cap"
+                     if fp.affordability.max_debt_ratio else "income"}
+    typer.echo(f"Savings {_n(savings_mad, ' MAD')}" + (f" · income {_n(income_eur, ' EUR')}/month"
+               if income_eur is not None else " · no income given (cash constraint only)")
+               + (f" · 1 EUR = {eur_mad:.2f} MAD" if eur_mad else ""))
+    failed = False
+    for name in ([scenario] if scenario else (fp.scenario_names() or [None])):
+        m = max_price(fp, savings_mad, income_eur, eur_mad, scenario=name, agency_listing=agency)
+        label = fp.for_scenario(name).financing.label or name or "default"
+        if not m.ok:
+            failed = True
+            typer.echo(f"{label}: cannot compute ({', '.join(m.missing_params)})")
+            continue
+        r = m.simulation
+        typer.echo(f"\n{label}{' *' if name == fp.default_scenario else ''}")
+        typer.echo(f"  Max price        {_n(m.max_price_mad, ' MAD')}"
+                   + (f"  (~ {_n(m.max_price_mad / eur_mad, ' EUR')})" if eur_mad else ""))
+        typer.echo(f"  Limited by       {why.get(m.binding, m.binding)}")
+        if r is None:
+            continue
+        typer.echo(f"  Down payment     {_n(r.down_payment_mad, ' MAD')} ({r.down_payment_pct:.1%})"
+                   + ("  = lender minimum" if m.min_down_payment_active else ""))
+        typer.echo(f"  Loan             {_n(r.loan_amount_mad, ' MAD')}")
+        typer.echo(f"  Cash at signing  {_n(r.total_cash_needed_mad, ' MAD')}  (incl. costs {_n(r.acquisition_costs_mad, ' MAD')})")
+        typer.echo(f"  Monthly payment  {_n(r.monthly_payment_mad, ' MAD')}"
+                   + (f"  (budget {_n(m.payment_budget_mad, ' MAD')})" if m.payment_budget_mad is not None else ""))
+    typer.echo("\n* default scenario. Market defaults, not a bank quote (see config/financing.yaml).")
+    if failed:
+        raise typer.Exit(2)
 
 
 @app.command()
@@ -388,8 +475,15 @@ def site(out: Path = typer.Option(Path("site"), help="Output folder for the stat
         "sources": r["sources"], "price_mad": r["price_mad"], "price_eur": r["price_eur"],
         "surface_m2": r["surface_m2"], "price_m2": r["price_m2"], "price_vs_zone": r["price_vs_zone"],
         "score": r["score"], "in_profile": bool(r["in_profile"]), "first_seen": r["first_seen"],
-        "reasons": r["top_reasons"][:3],
+        "reasons": r["top_reasons"][:3], "agency": r["agency_listing"],
+        "cash_mad": r["cash_needed_mad"], "monthly_mad": r["monthly_payment_mad"],
+        "income_mad": r["required_income_mad"], "income_eur": r["required_income_eur"],
     } for r in rows]
+    import statistics
+
+    ref = [l["price_mad"] for l in listings if l["price_mad"] and l["in_profile"]] or \
+          [l["price_mad"] for l in listings if l["price_mad"]]
+    fin = Q.financing_view(s, eur, statistics.median(ref) if ref else None)
     zones = [{"zone": z["zone"], "zone_label": z["zone_label"], "inventory": z["inventory"],
               **({"median_m2": z["current"]["median_m2"], "p25_m2": z["current"]["p25"],
                   "p75_m2": z["current"]["p75"], "listings_in_index": z["current"]["count"]}
@@ -399,7 +493,7 @@ def site(out: Path = typer.Option(Path("site"), help="Output folder for the stat
             "run_at_label": run_at.strftime("%-d %b %Y, %H:%M UTC") if run_at else "unknown",
             "eur_mad_label": f"1 EUR = {eur:.2f} MAD" if eur else "unavailable"}
     # "</" can't appear inside the inline JSON script
-    data_json = json.dumps({"listings": listings, "zones": zones}, ensure_ascii=False).replace("</", "<\\/")
+    data_json = json.dumps({"listings": listings, "zones": zones, "fin": fin}, ensure_ascii=False).replace("</", "<\\/")
     env = Environment(loader=FileSystemLoader(Path(__file__).parent / "api" / "templates"),
                       autoescape=select_autoescape(["html"]))
     out.mkdir(parents=True, exist_ok=True)

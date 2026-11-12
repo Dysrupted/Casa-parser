@@ -39,4 +39,5 @@ def simulate_all(db: Session, s: Settings, now: datetime, today: date) -> dict:
         row.price_mad, row.ok, row.outputs, row.computed_at = l.price_mad, res.ok, res.to_dict(), now
         db.add(row)
         n += 1
-    return {"status": "ok", "simulated": n, "params_hash": h, "eur_mad": eur}
+    return {"status": "ok", "simulated": n, "params_hash": h, "eur_mad": eur,
+            "scenario": params.default_scenario}

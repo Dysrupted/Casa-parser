@@ -1,0 +1,1277 @@
+{
+ "_comment": "Cases for the page calculator (templates/finance_calc.js) vs radar.simulation.engine. Synthetic params shaped like config/financing.yaml. Expected values were produced by the Python engine; the first case is hand-checked in tests/test_affordability.py.",
+ "params": {
+  "acquisition_costs": {
+   "registration_duties": {
+    "base": "price",
+    "rate": 0.04,
+    "fixed_mad": 0,
+    "vat_rate": 0
+   },
+   "land_registry": {
+    "base": "price",
+    "rate": 0.015,
+    "fixed_mad": 100,
+    "vat_rate": 0
+   },
+   "notary_fees": {
+    "base": "price",
+    "rate": 0.01,
+    "fixed_mad": 0,
+    "min_mad": 2500,
+    "vat_rate": 0.1
+   },
+   "notary_disbursements": {
+    "base": "price",
+    "rate": 0,
+    "fixed_mad": 2000,
+    "vat_rate": 0
+   },
+   "mortgage_registration": {
+    "base": "loan",
+    "fixed_mad": 0,
+    "vat_rate": 0,
+    "tiers": [
+     {
+      "up_to": 250000,
+      "rate": 0.005
+     },
+     {
+      "up_to": 5000000,
+      "rate": 0.015
+     },
+     {
+      "up_to": null,
+      "rate": 0.005
+     }
+    ]
+   },
+   "capped_line": {
+    "base": "price",
+    "rate": 0.002,
+    "fixed_mad": 0,
+    "max_mad": 4000,
+    "vat_rate": 0.2
+   },
+   "agency_fee": {
+    "base": "price",
+    "rate": 0.025,
+    "fixed_mad": 0,
+    "vat_rate": 0,
+    "applies": "agency_listing"
+   }
+  },
+  "financing": {
+   "down_payment_pct": 0.2,
+   "finance_acquisition_costs": false,
+   "annual_rate": 0.06,
+   "interest_vat_rate": 0.1,
+   "duration_years": 20,
+   "insurance": {
+    "mode": "outstanding_capital",
+    "annual_rate": 0.0042
+   },
+   "bank_fees_mad": 6000
+  },
+  "affordability": {
+   "max_debt_ratio": 0.4,
+   "existing_monthly_debt_eur": 150
+  },
+  "fx": {
+   "sensitivity_pct": 0.05
+  },
+  "rounding": {
+   "decimals": 0
+  }
+ },
+ "cases": [
+  {
+   "price": 1000000,
+   "down_pct": 0.2,
+   "rate": 0.06,
+   "years": 20,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.0,
+   "expected": {
+    "acquisition_costs_mad": 80000.0,
+    "down_payment_mad": 200000.0,
+    "loan_amount_mad": 800000.0,
+    "monthly_instalment_mad": 6012.0,
+    "monthly_insurance_mad": 280.0,
+    "monthly_payment_mad": 6292.0,
+    "total_cash_needed_mad": 286000.0,
+    "all_in_price_mad": 1080000.0,
+    "required_income_mad": 19479.0,
+    "required_income_eur": 1948.0,
+    "total_cash_needed_eur": 28600.0
+   }
+  },
+  {
+   "price": 2650000,
+   "down_pct": 0.2,
+   "rate": 0.048,
+   "years": 20,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 277350.0,
+    "down_payment_mad": 530000.0,
+    "loan_amount_mad": 2120000.0,
+    "monthly_instalment_mad": 14321.0,
+    "monthly_insurance_mad": 742.0,
+    "monthly_payment_mad": 15063.0,
+    "total_cash_needed_mad": 813350.0,
+    "all_in_price_mad": 2927350.0,
+    "required_income_mad": 41726.0,
+    "required_income_eur": 3846.0,
+    "total_cash_needed_eur": 74963.0
+   }
+  },
+  {
+   "price": 1234567,
+   "down_pct": 0.3,
+   "rate": 0.053,
+   "years": 15,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 97007.0,
+    "down_payment_mad": 370370.0,
+    "loan_amount_mad": 864197.0,
+    "monthly_instalment_mad": 7213.0,
+    "monthly_insurance_mad": 302.0,
+    "monthly_payment_mad": 7516.0,
+    "total_cash_needed_mad": 473377.0,
+    "all_in_price_mad": 1331574.0,
+    "required_income_mad": 22859.0,
+    "required_income_eur": 2107.0,
+    "total_cash_needed_eur": 43629.0
+   }
+  },
+  {
+   "price": 3499999,
+   "down_pct": 0.1,
+   "rate": 0.0453,
+   "years": 25,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 370150.0,
+    "down_payment_mad": 350000.0,
+    "loan_amount_mad": 3149999.0,
+    "monthly_instalment_mad": 18383.0,
+    "monthly_insurance_mad": 1102.0,
+    "monthly_payment_mad": 19486.0,
+    "total_cash_needed_mad": 726150.0,
+    "all_in_price_mad": 3870149.0,
+    "required_income_mad": 52783.0,
+    "required_income_eur": 4865.0,
+    "total_cash_needed_eur": 66926.0
+   }
+  },
+  {
+   "price": 180000,
+   "down_pct": 0.2,
+   "rate": 0.0455,
+   "years": 25,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 15902.0,
+    "down_payment_mad": 36000.0,
+    "loan_amount_mad": 144000.0,
+    "monthly_instalment_mad": 842.0,
+    "monthly_insurance_mad": 50.0,
+    "monthly_payment_mad": 893.0,
+    "total_cash_needed_mad": 57902.0,
+    "all_in_price_mad": 195902.0,
+    "required_income_mad": 6300.0,
+    "required_income_eur": 581.0,
+    "total_cash_needed_eur": 5337.0
+   }
+  },
+  {
+   "price": 240000,
+   "down_pct": 0.0,
+   "rate": 0.05,
+   "years": 7,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 19826.0,
+    "down_payment_mad": 0.0,
+    "loan_amount_mad": 240000.0,
+    "monthly_instalment_mad": 3449.0,
+    "monthly_insurance_mad": 84.0,
+    "monthly_payment_mad": 3533.0,
+    "total_cash_needed_mad": 25826.0,
+    "all_in_price_mad": 259826.0,
+    "required_income_mad": 12901.0,
+    "required_income_eur": 1189.0,
+    "total_cash_needed_eur": 2380.0
+   }
+  },
+  {
+   "price": 9000000,
+   "down_pct": 0.25,
+   "rate": 0.0,
+   "years": 10,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 907150.0,
+    "down_payment_mad": 2250000.0,
+    "loan_amount_mad": 6750000.0,
+    "monthly_instalment_mad": 56250.0,
+    "monthly_insurance_mad": 2363.0,
+    "monthly_payment_mad": 58613.0,
+    "total_cash_needed_mad": 3163150.0,
+    "all_in_price_mad": 9907150.0,
+    "required_income_mad": 150600.0,
+    "required_income_eur": 13880.0,
+    "total_cash_needed_eur": 291535.0
+   }
+  },
+  {
+   "price": 2000000,
+   "down_pct": 1.0,
+   "rate": 0.048,
+   "years": 20,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 138900.0,
+    "down_payment_mad": 2000000.0,
+    "loan_amount_mad": 0.0,
+    "monthly_instalment_mad": 0.0,
+    "monthly_insurance_mad": 0.0,
+    "monthly_payment_mad": 0.0,
+    "total_cash_needed_mad": 2138900.0,
+    "all_in_price_mad": 2138900.0,
+    "required_income_mad": 4069.0,
+    "required_income_eur": 375.0,
+    "total_cash_needed_eur": 197134.0
+   }
+  },
+  {
+   "price": 2000000,
+   "down_pct": 0.2,
+   "rate": 0.048,
+   "years": 20,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 160400.0,
+    "down_payment_mad": 400000.0,
+    "loan_amount_mad": 1600000.0,
+    "monthly_instalment_mad": 10808.0,
+    "monthly_insurance_mad": 560.0,
+    "monthly_payment_mad": 11368.0,
+    "total_cash_needed_mad": 566400.0,
+    "all_in_price_mad": 2160400.0,
+    "required_income_mad": 32490.0,
+    "required_income_eur": 2994.0,
+    "total_cash_needed_eur": 52203.0
+   }
+  },
+  {
+   "price": 1917512,
+   "down_pct": 0.8,
+   "rate": 0.048,
+   "years": 25,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 136510.0,
+    "down_payment_mad": 1534010.0,
+    "loan_amount_mad": 383502.0,
+    "monthly_instalment_mad": 2305.0,
+    "monthly_insurance_mad": 134.0,
+    "monthly_payment_mad": 2439.0,
+    "total_cash_needed_mad": 1676520.0,
+    "all_in_price_mad": 2054022.0,
+    "required_income_mad": 10035.0,
+    "required_income_eur": 956.0,
+    "total_cash_needed_eur": 159669.0
+   }
+  },
+  {
+   "price": 2192423,
+   "down_pct": 0.333,
+   "rate": 0.053,
+   "years": 10,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 171035.0,
+    "down_payment_mad": 730077.0,
+    "loan_amount_mad": 1462346.0,
+    "monthly_instalment_mad": 16110.0,
+    "monthly_insurance_mad": 512.0,
+    "monthly_payment_mad": 16622.0,
+    "total_cash_needed_mad": 907112.0,
+    "all_in_price_mad": 2363458.0,
+    "required_income_mad": 45625.0,
+    "required_income_eur": 4205.0,
+    "total_cash_needed_eur": 83605.0
+   }
+  },
+  {
+   "price": 4291180,
+   "down_pct": 0.333,
+   "rate": 0.0599,
+   "years": 5,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 330551.0,
+    "down_payment_mad": 1428963.0,
+    "loan_amount_mad": 2862217.0,
+    "monthly_instalment_mad": 56122.0,
+    "monthly_insurance_mad": 1002.0,
+    "monthly_payment_mad": 57124.0,
+    "total_cash_needed_mad": 1765514.0,
+    "all_in_price_mad": 4621731.0,
+    "required_income_mad": 146878.0,
+    "required_income_eur": 13537.0,
+    "total_cash_needed_eur": 162720.0
+   }
+  },
+  {
+   "price": 5773678,
+   "down_pct": 0.05,
+   "rate": 0.053,
+   "years": 5,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 607230.0,
+    "down_payment_mad": 288684.0,
+    "loan_amount_mad": 5484994.0,
+    "monthly_instalment_mad": 105607.0,
+    "monthly_insurance_mad": 1920.0,
+    "monthly_payment_mad": 107527.0,
+    "total_cash_needed_mad": 901914.0,
+    "all_in_price_mad": 6380908.0,
+    "required_income_mad": 272886.0,
+    "required_income_eur": 25151.0,
+    "total_cash_needed_eur": 83126.0
+   }
+  },
+  {
+   "price": 3612968,
+   "down_pct": 0.333,
+   "rate": 0.0515,
+   "years": 5,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 369328.0,
+    "down_payment_mad": 1203118.0,
+    "loan_amount_mad": 2409850.0,
+    "monthly_instalment_mad": 46215.0,
+    "monthly_insurance_mad": 843.0,
+    "monthly_payment_mad": 47058.0,
+    "total_cash_needed_mad": 1578446.0,
+    "all_in_price_mad": 3982296.0,
+    "required_income_mad": 121734.0,
+    "required_income_eur": 11164.0,
+    "total_cash_needed_eur": 144762.0
+   }
+  },
+  {
+   "price": 1584403,
+   "down_pct": 0.333,
+   "rate": 0.0425,
+   "years": 12,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 123825.0,
+    "down_payment_mad": 527606.0,
+    "loan_amount_mad": 1056797.0,
+    "monthly_instalment_mad": 9603.0,
+    "monthly_insurance_mad": 370.0,
+    "monthly_payment_mad": 9973.0,
+    "total_cash_needed_mad": 657431.0,
+    "all_in_price_mad": 1708228.0,
+    "required_income_mad": 28869.0,
+    "required_income_eur": 2749.0,
+    "total_cash_needed_eur": 62613.0
+   }
+  },
+  {
+   "price": 2974401,
+   "down_pct": 0.333,
+   "rate": 0.0515,
+   "years": 12,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 304829.0,
+    "down_payment_mad": 990476.0,
+    "loan_amount_mad": 1983925.0,
+    "monthly_instalment_mad": 19018.0,
+    "monthly_insurance_mad": 694.0,
+    "monthly_payment_mad": 19712.0,
+    "total_cash_needed_mad": 1301305.0,
+    "all_in_price_mad": 3279230.0,
+    "required_income_mad": 53350.0,
+    "required_income_eur": 4917.0,
+    "total_cash_needed_eur": 119936.0
+   }
+  },
+  {
+   "price": 5471784,
+   "down_pct": 0,
+   "rate": 0.0425,
+   "years": 12,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 442897.0,
+    "down_payment_mad": 0.0,
+    "loan_amount_mad": 5471784.0,
+    "monthly_instalment_mad": 49721.0,
+    "monthly_insurance_mad": 1915.0,
+    "monthly_payment_mad": 51636.0,
+    "total_cash_needed_mad": 448897.0,
+    "all_in_price_mad": 5914681.0,
+    "required_income_mad": 133027.0,
+    "required_income_eur": 12669.0,
+    "total_cash_needed_eur": 42752.0
+   }
+  },
+  {
+   "price": 3752021,
+   "down_pct": 0.1,
+   "rate": 0.0515,
+   "years": 7,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 302686.0,
+    "down_payment_mad": 375202.0,
+    "loan_amount_mad": 3376819.0,
+    "monthly_instalment_mad": 48790.0,
+    "monthly_insurance_mad": 1182.0,
+    "monthly_payment_mad": 49972.0,
+    "total_cash_needed_mad": 683888.0,
+    "all_in_price_mad": 4054707.0,
+    "required_income_mad": 129130.0,
+    "required_income_eur": 11529.0,
+    "total_cash_needed_eur": 61061.0
+   }
+  },
+  {
+   "price": 1237881,
+   "down_pct": 0.2,
+   "rate": 0.07,
+   "years": 10,
+   "agency": false,
+   "finance_costs": true,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 100635.0,
+    "down_payment_mad": 247576.0,
+    "loan_amount_mad": 1090940.0,
+    "monthly_instalment_mad": 13064.0,
+    "monthly_insurance_mad": 382.0,
+    "monthly_payment_mad": 13446.0,
+    "total_cash_needed_mad": 253576.0,
+    "all_in_price_mad": 1338516.0,
+    "required_income_mad": 37552.0,
+    "required_income_eur": 3576.0,
+    "total_cash_needed_eur": 24150.0
+   }
+  },
+  {
+   "price": 802137,
+   "down_pct": 0.8,
+   "rate": 0.0453,
+   "years": 5,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 77822.0,
+    "down_payment_mad": 641710.0,
+    "loan_amount_mad": 160427.0,
+    "monthly_instalment_mad": 3026.0,
+    "monthly_insurance_mad": 56.0,
+    "monthly_payment_mad": 3082.0,
+    "total_cash_needed_mad": 725531.0,
+    "all_in_price_mad": 879959.0,
+    "required_income_mad": 11906.0,
+    "required_income_eur": 1063.0,
+    "total_cash_needed_eur": 64780.0
+   }
+  },
+  {
+   "price": 3110202,
+   "down_pct": 0.1,
+   "rate": 0.0599,
+   "years": 5,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 251661.0,
+    "down_payment_mad": 311020.0,
+    "loan_amount_mad": 2799182.0,
+    "monthly_instalment_mad": 54886.0,
+    "monthly_insurance_mad": 980.0,
+    "monthly_payment_mad": 55866.0,
+    "total_cash_needed_mad": 568681.0,
+    "all_in_price_mad": 3361863.0,
+    "required_income_mad": 143733.0,
+    "required_income_eur": 13247.0,
+    "total_cash_needed_eur": 52413.0
+   }
+  },
+  {
+   "price": 4568331,
+   "down_pct": 0,
+   "rate": 0.0453,
+   "years": 7,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 374435.0,
+    "down_payment_mad": 0.0,
+    "loan_amount_mad": 4568331.0,
+    "monthly_instalment_mad": 64532.0,
+    "monthly_insurance_mad": 1599.0,
+    "monthly_payment_mad": 66131.0,
+    "total_cash_needed_mad": 380435.0,
+    "all_in_price_mad": 4942766.0,
+    "required_income_mad": 169416.0,
+    "required_income_eur": 15537.0,
+    "total_cash_needed_eur": 34890.0
+   }
+  },
+  {
+   "price": 3026605,
+   "down_pct": 0.8,
+   "rate": 0.07,
+   "years": 5,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 213236.0,
+    "down_payment_mad": 2421284.0,
+    "loan_amount_mad": 605321.0,
+    "monthly_instalment_mad": 12187.0,
+    "monthly_insurance_mad": 212.0,
+    "monthly_payment_mad": 12399.0,
+    "total_cash_needed_mad": 2640520.0,
+    "all_in_price_mad": 3239841.0,
+    "required_income_mad": 34935.0,
+    "required_income_eur": 3327.0,
+    "total_cash_needed_eur": 251478.0
+   }
+  },
+  {
+   "price": 4183330,
+   "down_pct": 0.1,
+   "rate": 0.035,
+   "years": 12,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 336975.0,
+    "down_payment_mad": 418333.0,
+    "loan_amount_mad": 3764997.0,
+    "monthly_instalment_mad": 32690.0,
+    "monthly_insurance_mad": 1318.0,
+    "monthly_payment_mad": 34008.0,
+    "total_cash_needed_mad": 761308.0,
+    "all_in_price_mad": 4520305.0,
+    "required_income_mad": 89108.0,
+    "required_income_eur": 8172.0,
+    "total_cash_needed_eur": 69821.0
+   }
+  },
+  {
+   "price": 5565892,
+   "down_pct": 0.3,
+   "rate": 0.053,
+   "years": 10,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 430191.0,
+    "down_payment_mad": 1669768.0,
+    "loan_amount_mad": 3896124.0,
+    "monthly_instalment_mad": 42923.0,
+    "monthly_insurance_mad": 1364.0,
+    "monthly_payment_mad": 44287.0,
+    "total_cash_needed_mad": 2105958.0,
+    "all_in_price_mad": 5996083.0,
+    "required_income_mad": 114917.0,
+    "required_income_eur": 10260.0,
+    "total_cash_needed_eur": 188032.0
+   }
+  },
+  {
+   "price": 2730464,
+   "down_pct": 0.8,
+   "rate": 0.0453,
+   "years": 5,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 192802.0,
+    "down_payment_mad": 2184371.0,
+    "loan_amount_mad": 546093.0,
+    "monthly_instalment_mad": 10301.0,
+    "monthly_insurance_mad": 191.0,
+    "monthly_payment_mad": 10492.0,
+    "total_cash_needed_mad": 2383173.0,
+    "all_in_price_mad": 2923266.0,
+    "required_income_mad": 30320.0,
+    "required_income_eur": 2781.0,
+    "total_cash_needed_eur": 218566.0
+   }
+  },
+  {
+   "price": 1846457,
+   "down_pct": 0.5,
+   "rate": 0.07,
+   "years": 25,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 139746.0,
+    "down_payment_mad": 923229.0,
+    "loan_amount_mad": 923229.0,
+    "monthly_instalment_mad": 6943.0,
+    "monthly_insurance_mad": 323.0,
+    "monthly_payment_mad": 7266.0,
+    "total_cash_needed_mad": 1068975.0,
+    "all_in_price_mad": 1986203.0,
+    "required_income_mad": 22255.0,
+    "required_income_eur": 2041.0,
+    "total_cash_needed_eur": 98038.0
+   }
+  },
+  {
+   "price": 5060593,
+   "down_pct": 0.3,
+   "rate": 0.0515,
+   "years": 20,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 518050.0,
+    "down_payment_mad": 1518178.0,
+    "loan_amount_mad": 3542415.0,
+    "monthly_instalment_mad": 24699.0,
+    "monthly_insurance_mad": 1240.0,
+    "monthly_payment_mad": 25939.0,
+    "total_cash_needed_mad": 2042228.0,
+    "all_in_price_mad": 5578643.0,
+    "required_income_mad": 68785.0,
+    "required_income_eur": 6551.0,
+    "total_cash_needed_eur": 194498.0
+   }
+  },
+  {
+   "price": 3032436,
+   "down_pct": 0.3,
+   "rate": 0.0515,
+   "years": 12,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 312192.0,
+    "down_payment_mad": 909731.0,
+    "loan_amount_mad": 2122705.0,
+    "monthly_instalment_mad": 20348.0,
+    "monthly_insurance_mad": 743.0,
+    "monthly_payment_mad": 21091.0,
+    "total_cash_needed_mad": 1227923.0,
+    "all_in_price_mad": 3344628.0,
+    "required_income_mad": 56928.0,
+    "required_income_eur": 5083.0,
+    "total_cash_needed_eur": 109636.0
+   }
+  },
+  {
+   "price": 3880263,
+   "down_pct": 0.05,
+   "rate": 0.048,
+   "years": 12,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 315791.0,
+    "down_payment_mad": 194013.0,
+    "loan_amount_mad": 3686250.0,
+    "monthly_instalment_mad": 34614.0,
+    "monthly_insurance_mad": 1290.0,
+    "monthly_payment_mad": 35904.0,
+    "total_cash_needed_mad": 515804.0,
+    "all_in_price_mad": 4196054.0,
+    "required_income_mad": 93960.0,
+    "required_income_eur": 8389.0,
+    "total_cash_needed_eur": 46054.0
+   }
+  },
+  {
+   "price": 602044,
+   "down_pct": 0.5,
+   "rate": 0.035,
+   "years": 10,
+   "agency": false,
+   "finance_costs": true,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 45985.0,
+    "down_payment_mad": 301022.0,
+    "loan_amount_mad": 347007.0,
+    "monthly_instalment_mad": 3489.0,
+    "monthly_insurance_mad": 121.0,
+    "monthly_payment_mad": 3610.0,
+    "total_cash_needed_mad": 307022.0,
+    "all_in_price_mad": 648029.0,
+    "required_income_mad": 13225.0,
+    "required_income_eur": 1181.0,
+    "total_cash_needed_eur": 27413.0
+   }
+  },
+  {
+   "price": 213720,
+   "down_pct": 0.5,
+   "rate": 0.053,
+   "years": 10,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 17652.0,
+    "down_payment_mad": 106860.0,
+    "loan_amount_mad": 106860.0,
+    "monthly_instalment_mad": 1177.0,
+    "monthly_insurance_mad": 37.0,
+    "monthly_payment_mad": 1215.0,
+    "total_cash_needed_mad": 130512.0,
+    "all_in_price_mad": 231372.0,
+    "required_income_mad": 6974.0,
+    "required_income_eur": 664.0,
+    "total_cash_needed_eur": 12430.0
+   }
+  },
+  {
+   "price": 5634141,
+   "down_pct": 0.5,
+   "rate": 0.0425,
+   "years": 30,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 418509.0,
+    "down_payment_mad": 2817071.0,
+    "loan_amount_mad": 2817071.0,
+    "monthly_instalment_mad": 14568.0,
+    "monthly_insurance_mad": 986.0,
+    "monthly_payment_mad": 15554.0,
+    "total_cash_needed_mad": 3241580.0,
+    "all_in_price_mad": 6052650.0,
+    "required_income_mad": 42823.0,
+    "required_income_eur": 4078.0,
+    "total_cash_needed_eur": 308722.0
+   }
+  },
+  {
+   "price": 3922672,
+   "down_pct": 0,
+   "rate": 0.0453,
+   "years": 20,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 322136.0,
+    "down_payment_mad": 0.0,
+    "loan_amount_mad": 3922672.0,
+    "monthly_instalment_mad": 25851.0,
+    "monthly_insurance_mad": 1373.0,
+    "monthly_payment_mad": 27224.0,
+    "total_cash_needed_mad": 328136.0,
+    "all_in_price_mad": 4244808.0,
+    "required_income_mad": 72129.0,
+    "required_income_eur": 6648.0,
+    "total_cash_needed_eur": 30243.0
+   }
+  },
+  {
+   "price": 333692,
+   "down_pct": 0.1,
+   "rate": 0.048,
+   "years": 7,
+   "agency": false,
+   "finance_costs": true,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 27339.0,
+    "down_payment_mad": 33369.0,
+    "loan_amount_mad": 327662.0,
+    "monthly_instalment_mad": 4674.0,
+    "monthly_insurance_mad": 115.0,
+    "monthly_payment_mad": 4789.0,
+    "total_cash_needed_mad": 39369.0,
+    "all_in_price_mad": 361031.0,
+    "required_income_mad": 16062.0,
+    "required_income_eur": 1473.0,
+    "total_cash_needed_eur": 3611.0
+   }
+  },
+  {
+   "price": 5418629,
+   "down_pct": 0.2,
+   "rate": 0.0515,
+   "years": 20,
+   "agency": false,
+   "finance_costs": true,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 433556.0,
+    "down_payment_mad": 1083726.0,
+    "loan_amount_mad": 4768460.0,
+    "monthly_instalment_mad": 33248.0,
+    "monthly_insurance_mad": 1669.0,
+    "monthly_payment_mad": 34917.0,
+    "total_cash_needed_mad": 1089726.0,
+    "all_in_price_mad": 5852185.0,
+    "required_income_mad": 91491.0,
+    "required_income_eur": 8169.0,
+    "total_cash_needed_eur": 97297.0
+   }
+  },
+  {
+   "price": 3307355,
+   "down_pct": 0.1,
+   "rate": 0.048,
+   "years": 30,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 350019.0,
+    "down_payment_mad": 330736.0,
+    "loan_amount_mad": 2976620.0,
+    "monthly_instalment_mad": 16492.0,
+    "monthly_insurance_mad": 1042.0,
+    "monthly_payment_mad": 17534.0,
+    "total_cash_needed_mad": 686754.0,
+    "all_in_price_mad": 3657374.0,
+    "required_income_mad": 47904.0,
+    "required_income_eur": 4415.0,
+    "total_cash_needed_eur": 63295.0
+   }
+  },
+  {
+   "price": 4111093,
+   "down_pct": 0.8,
+   "rate": 0.053,
+   "years": 25,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 288065.0,
+    "down_payment_mad": 3288874.0,
+    "loan_amount_mad": 822219.0,
+    "monthly_instalment_mad": 5212.0,
+    "monthly_insurance_mad": 288.0,
+    "monthly_payment_mad": 5500.0,
+    "total_cash_needed_mad": 3582940.0,
+    "all_in_price_mad": 4399158.0,
+    "required_income_mad": 17839.0,
+    "required_income_eur": 1636.0,
+    "total_cash_needed_eur": 328599.0
+   }
+  },
+  {
+   "price": 609651,
+   "down_pct": 0.05,
+   "rate": 0.035,
+   "years": 5,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 65229.0,
+    "down_payment_mad": 30483.0,
+    "loan_amount_mad": 579168.0,
+    "monthly_instalment_mad": 10627.0,
+    "monthly_insurance_mad": 203.0,
+    "monthly_payment_mad": 10830.0,
+    "total_cash_needed_mad": 101711.0,
+    "all_in_price_mad": 674880.0,
+    "required_income_mad": 31163.0,
+    "required_income_eur": 2858.0,
+    "total_cash_needed_eur": 9328.0
+   }
+  },
+  {
+   "price": 2331464,
+   "down_pct": 0,
+   "rate": 0.0453,
+   "years": 7,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 193249.0,
+    "down_payment_mad": 0.0,
+    "loan_amount_mad": 2331464.0,
+    "monthly_instalment_mad": 32934.0,
+    "monthly_insurance_mad": 816.0,
+    "monthly_payment_mad": 33750.0,
+    "total_cash_needed_mad": 199249.0,
+    "all_in_price_mad": 2524713.0,
+    "required_income_mad": 88464.0,
+    "required_income_eur": 8113.0,
+    "total_cash_needed_eur": 18273.0
+   }
+  },
+  {
+   "price": 378634,
+   "down_pct": 0.333,
+   "rate": 0.048,
+   "years": 20,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 29287.0,
+    "down_payment_mad": 126085.0,
+    "loan_amount_mad": 252549.0,
+    "monthly_instalment_mad": 1706.0,
+    "monthly_insurance_mad": 88.0,
+    "monthly_payment_mad": 1794.0,
+    "total_cash_needed_mad": 161372.0,
+    "all_in_price_mad": 407921.0,
+    "required_income_mad": 8555.0,
+    "required_income_eur": 788.0,
+    "total_cash_needed_eur": 14873.0
+   }
+  },
+  {
+   "price": 1325855,
+   "down_pct": 0.05,
+   "rate": 0.035,
+   "years": 30,
+   "agency": true,
+   "finance_costs": true,
+   "eur_mad": 10.85,
+   "expected": {
+    "acquisition_costs_mad": 144496.0,
+    "down_payment_mad": 66293.0,
+    "loan_amount_mad": 1404058.0,
+    "monthly_instalment_mad": 6582.0,
+    "monthly_insurance_mad": 491.0,
+    "monthly_payment_mad": 7074.0,
+    "total_cash_needed_mad": 72293.0,
+    "all_in_price_mad": 1470351.0,
+    "required_income_mad": 21753.0,
+    "required_income_eur": 2005.0,
+    "total_cash_needed_eur": 6663.0
+   }
+  },
+  {
+   "price": 1778185,
+   "down_pct": 0.333,
+   "rate": 0.035,
+   "years": 20,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 139019.0,
+    "down_payment_mad": 592136.0,
+    "loan_amount_mad": 1186049.0,
+    "monthly_instalment_mad": 7094.0,
+    "monthly_insurance_mad": 415.0,
+    "monthly_payment_mad": 7509.0,
+    "total_cash_needed_mad": 737154.0,
+    "all_in_price_mad": 1917204.0,
+    "required_income_mad": 22861.0,
+    "required_income_eur": 2097.0,
+    "total_cash_needed_eur": 67606.0
+   }
+  },
+  {
+   "price": 200689,
+   "down_pct": 0.2,
+   "rate": 0.0453,
+   "years": 12,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 22190.0,
+    "down_payment_mad": 40138.0,
+    "loan_amount_mad": 160551.0,
+    "monthly_instalment_mad": 1484.0,
+    "monthly_insurance_mad": 56.0,
+    "monthly_payment_mad": 1540.0,
+    "total_cash_needed_mad": 68327.0,
+    "all_in_price_mad": 222879.0,
+    "required_income_mad": 8049.0,
+    "required_income_eur": 719.0,
+    "total_cash_needed_eur": 6101.0
+   }
+  },
+  {
+   "price": 3521682,
+   "down_pct": 0.1,
+   "rate": 0.0453,
+   "years": 25,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 284374.0,
+    "down_payment_mad": 352168.0,
+    "loan_amount_mad": 3169514.0,
+    "monthly_instalment_mad": 18497.0,
+    "monthly_insurance_mad": 1109.0,
+    "monthly_payment_mad": 19607.0,
+    "total_cash_needed_mad": 642542.0,
+    "all_in_price_mad": 3806056.0,
+    "required_income_mad": 52954.0,
+    "required_income_eur": 5043.0,
+    "total_cash_needed_eur": 61194.0
+   }
+  },
+  {
+   "price": 1117015,
+   "down_pct": 0.3,
+   "rate": 0.053,
+   "years": 20,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 115658.0,
+    "down_payment_mad": 335105.0,
+    "loan_amount_mad": 781911.0,
+    "monthly_instalment_mad": 5525.0,
+    "monthly_insurance_mad": 274.0,
+    "monthly_payment_mad": 5799.0,
+    "total_cash_needed_mad": 456762.0,
+    "all_in_price_mad": 1232673.0,
+    "required_income_mad": 18587.0,
+    "required_income_eur": 1705.0,
+    "total_cash_needed_eur": 41891.0
+   }
+  },
+  {
+   "price": 3387843,
+   "down_pct": 0.2,
+   "rate": 0.0599,
+   "years": 20,
+   "agency": true,
+   "finance_costs": true,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 358729.0,
+    "down_payment_mad": 677569.0,
+    "loan_amount_mad": 3069003.0,
+    "monthly_instalment_mad": 23043.0,
+    "monthly_insurance_mad": 1074.0,
+    "monthly_payment_mad": 24117.0,
+    "total_cash_needed_mad": 683569.0,
+    "all_in_price_mad": 3746572.0,
+    "required_income_mad": 64492.0,
+    "required_income_eur": 5758.0,
+    "total_cash_needed_eur": 61033.0
+   }
+  },
+  {
+   "price": 5253000,
+   "down_pct": 0,
+   "rate": 0.0599,
+   "years": 5,
+   "agency": false,
+   "finance_costs": true,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 429511.0,
+    "down_payment_mad": 0.0,
+    "loan_amount_mad": 5682511.0,
+    "monthly_instalment_mad": 111422.0,
+    "monthly_insurance_mad": 1989.0,
+    "monthly_payment_mad": 113411.0,
+    "total_cash_needed_mad": 6000.0,
+    "all_in_price_mad": 5682511.0,
+    "required_income_mad": 287616.0,
+    "required_income_eur": 26378.0,
+    "total_cash_needed_eur": 550.0
+   }
+  },
+  {
+   "price": 2046939,
+   "down_pct": 0.5,
+   "rate": 0.0425,
+   "years": 10,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 154850.0,
+    "down_payment_mad": 1023470.0,
+    "loan_amount_mad": 1023470.0,
+    "monthly_instalment_mad": 10694.0,
+    "monthly_insurance_mad": 358.0,
+    "monthly_payment_mad": 11052.0,
+    "total_cash_needed_mad": 1184320.0,
+    "all_in_price_mad": 2201789.0,
+    "required_income_mad": 31567.0,
+    "required_income_eur": 3006.0,
+    "total_cash_needed_eur": 112792.0
+   }
+  },
+  {
+   "price": 4238742,
+   "down_pct": 0.5,
+   "rate": 0.0425,
+   "years": 20,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 315948.0,
+    "down_payment_mad": 2119371.0,
+    "loan_amount_mad": 2119371.0,
+    "monthly_instalment_mad": 13609.0,
+    "monthly_insurance_mad": 742.0,
+    "monthly_payment_mad": 14351.0,
+    "total_cash_needed_mad": 2441319.0,
+    "all_in_price_mad": 4554690.0,
+    "required_income_mad": 39815.0,
+    "required_income_eur": 3792.0,
+    "total_cash_needed_eur": 232507.0
+   }
+  },
+  {
+   "price": 2180754,
+   "down_pct": 0.5,
+   "rate": 0.053,
+   "years": 5,
+   "agency": false,
+   "finance_costs": true,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 167193.0,
+    "down_payment_mad": 1090377.0,
+    "loan_amount_mad": 1257570.0,
+    "monthly_instalment_mad": 24213.0,
+    "monthly_insurance_mad": 440.0,
+    "monthly_payment_mad": 24653.0,
+    "total_cash_needed_mad": 1096377.0,
+    "all_in_price_mad": 2347947.0,
+    "required_income_mad": 65722.0,
+    "required_income_eur": 6027.0,
+    "total_cash_needed_eur": 100551.0
+   }
+  },
+  {
+   "price": 398895,
+   "down_pct": 0.2,
+   "rate": 0.035,
+   "years": 20,
+   "agency": true,
+   "finance_costs": false,
+   "eur_mad": 10.5,
+   "expected": {
+    "acquisition_costs_mad": 41644.0,
+    "down_payment_mad": 79779.0,
+    "loan_amount_mad": 319116.0,
+    "monthly_instalment_mad": 1909.0,
+    "monthly_insurance_mad": 112.0,
+    "monthly_payment_mad": 2020.0,
+    "total_cash_needed_mad": 127423.0,
+    "all_in_price_mad": 440539.0,
+    "required_income_mad": 8988.0,
+    "required_income_eur": 856.0,
+    "total_cash_needed_eur": 12135.0
+   }
+  },
+  {
+   "price": 204008,
+   "down_pct": 0.333,
+   "rate": 0.0453,
+   "years": 7,
+   "agency": false,
+   "finance_costs": false,
+   "eur_mad": 10.9037,
+   "expected": {
+    "acquisition_costs_mad": 17240.0,
+    "down_payment_mad": 67935.0,
+    "loan_amount_mad": 136073.0,
+    "monthly_instalment_mad": 1922.0,
+    "monthly_insurance_mad": 48.0,
+    "monthly_payment_mad": 1970.0,
+    "total_cash_needed_mad": 91175.0,
+    "all_in_price_mad": 221248.0,
+    "required_income_mad": 9013.0,
+    "required_income_eur": 827.0,
+    "total_cash_needed_eur": 8362.0
+   }
+  },
+  {
+   "price": 4001144,
+   "down_pct": 0.8,
+   "rate": 0.053,
+   "years": 7,
+   "agency": false,
+   "finance_costs": true,
+   "eur_mad": 11.2,
+   "expected": {
+    "acquisition_costs_mad": 284750.0,
+    "down_payment_mad": 3200915.0,
+    "loan_amount_mad": 1084979.0,
+    "monthly_instalment_mad": 15762.0,
+    "monthly_insurance_mad": 380.0,
+    "monthly_payment_mad": 16141.0,
+    "total_cash_needed_mad": 3206915.0,
+    "all_in_price_mad": 4285894.0,
+    "required_income_mad": 44554.0,
+    "required_income_eur": 3978.0,
+    "total_cash_needed_eur": 286332.0
+   }
+  }
+ ]
+}

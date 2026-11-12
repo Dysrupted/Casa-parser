@@ -65,6 +65,14 @@ class SimulationResult:
     all_in_price_eur: float | None = None
     all_in_price_eur_band: tuple[float, float] | None = None   # (EUR strong, EUR weak)
     total_cash_needed_eur: float | None = None
+    # financing scenario + affordability (None when the config has no scenario / no debt-ratio cap)
+    scenario: str | None = None
+    down_payment_pct: float | None = None
+    min_down_payment_ok: bool | None = None         # False = loan above the scenario's LTV cap
+    annual_rate_effective: float | None = None      # nominal rate incl. tax on interest
+    max_debt_ratio: float | None = None
+    required_income_mad: float | None = None        # monthly net income needed at the debt-ratio cap
+    required_income_eur: float | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -72,7 +80,16 @@ class SimulationResult:
 
 def _line_amount(line: CostLine, price: Decimal, loan: Decimal) -> Decimal:
     base = price if line.base == "price" else loan
-    amt = _d(line.rate) * base + _d(line.fixed_mad or 0)
+    if line.tiers:
+        amt, floor = D(0), D(0)
+        for t in line.tiers:        # progressive: each rate applies to its own slice of the base
+            top = base if t.up_to is None else min(base, _d(t.up_to))
+            if top > floor:
+                amt += (top - floor) * _d(t.rate)
+                floor = top
+    else:
+        amt = _d(line.rate) * base
+    amt += _d(line.fixed_mad or 0)
     if line.min_mad is not None:
         amt = max(amt, _d(line.min_mad))
     if line.max_mad is not None:
@@ -80,18 +97,20 @@ def _line_amount(line: CostLine, price: Decimal, loan: Decimal) -> Decimal:
     return amt * (1 + _d(line.vat_rate or 0))
 
 
-def simulate(price_mad, params: FinancingParams, agency_listing: bool = False,
-             eur_mad: float | None = None) -> SimulationResult:
-    if (missing := params.missing()):
-        return SimulationResult(ok=False, missing_params=missing, price_mad=float(price_mad))
-    q = D(1).scaleb(-params.rounding.decimals)
+def effective_rate(f) -> Decimal:
+    """Annual rate actually paid: nominal rate plus the tax levied on the interest."""
+    return _d(f.annual_rate) * (1 + _d(f.interest_vat_rate))
 
-    def rnd(x: Decimal) -> float:
-        return float(x.quantize(q, rounding=ROUND_HALF_UP))
 
+def core(price_mad, params: FinancingParams, agency_listing: bool = False, down_payment_mad=None) -> dict:
+    """Unrounded cash / loan / first-month figures for an already resolved scenario.
+
+    Cheap (no amortization schedule), so the affordability search can call it many times.
+    `down_payment_mad` overrides the scenario's down-payment share.
+    """
     f = params.financing
     price = _d(price_mad)
-    down = price * _d(f.down_payment_pct)
+    down = price * _d(f.down_payment_pct) if down_payment_mad is None else _d(down_payment_mad)
     base_loan = price - down
 
     lines = {k: l for k, l in params.acquisition_costs.items()
@@ -99,6 +118,7 @@ def simulate(price_mad, params: FinancingParams, agency_listing: bool = False,
     # Loan-based costs depend on the loan; if costs are financed, the loan depends on them.
     # Fixed point: loan = base_loan + costs(loan). Converges fast (loan-based rates are tiny).
     loan = base_loan
+    costs: dict[str, Decimal] = {}
     for _ in range(50):
         costs = {k: _line_amount(l, price, loan) for k, l in lines.items()}
         new_loan = base_loan + sum(costs.values(), D(0)) if f.finance_acquisition_costs else base_loan
@@ -106,16 +126,51 @@ def simulate(price_mad, params: FinancingParams, agency_listing: bool = False,
             break
         loan = new_loan
     total_costs = sum(costs.values(), D(0))
+    instalment = pmt(effective_rate(f) / 12, f.duration_years * 12, loan) if loan > 0 else D(0)
+    ins_m1 = loan * _d(f.insurance.annual_rate) / 12 if loan > 0 else D(0)   # same in both insurance modes
+    bank = _d(f.bank_fees_mad) if loan > 0 else D(0)
+    cash = down + (0 if f.finance_acquisition_costs else total_costs) + bank
+    return {"price": price, "down": down, "loan": loan, "costs": costs, "total_costs": total_costs,
+            "instalment": instalment, "insurance_m1": ins_m1, "monthly": instalment + ins_m1,
+            "bank_fees": bank, "cash": cash}
 
-    sched = amortization_schedule(loan, f.annual_rate, f.duration_years, f.insurance.mode,
+
+def required_income_mad(monthly_payment, params: FinancingParams, eur_mad=None) -> Decimal | None:
+    """Monthly net income (MAD) at which payment + existing debts reach the debt-ratio cap."""
+    a = params.affordability
+    if a.max_debt_ratio is None:
+        return None
+    debt = _d(a.existing_monthly_debt_eur)
+    if debt and not eur_mad:
+        return None          # existing debts are in EUR: no rate, no figure (never a guess)
+    return (_d(monthly_payment) + debt * _d(eur_mad or 0)) / _d(a.max_debt_ratio)
+
+
+def simulate(price_mad, params: FinancingParams, agency_listing: bool = False,
+             eur_mad: float | None = None, scenario: str | None = None,
+             down_payment_mad=None) -> SimulationResult:
+    """Simulate a purchase. `scenario` picks a named scenario (default: the config's default one)."""
+    name = scenario or params.default_scenario
+    params = params.for_scenario(scenario)
+    if (missing := params.missing()):
+        return SimulationResult(ok=False, missing_params=missing, price_mad=float(price_mad), scenario=name)
+    q = D(1).scaleb(-params.rounding.decimals)
+
+    def rnd(x: Decimal) -> float:
+        return float(x.quantize(q, rounding=ROUND_HALF_UP))
+
+    f = params.financing
+    c = core(price_mad, params, agency_listing, down_payment_mad)
+    price, down, loan, costs, total_costs = c["price"], c["down"], c["loan"], c["costs"], c["total_costs"]
+
+    sched = amortization_schedule(loan, effective_rate(f), f.duration_years, f.insurance.mode,
                                   f.insurance.annual_rate) if loan > 0 else []
-    instalment = sched[0]["payment"] if sched else D(0)
-    ins_m1 = sched[0]["insurance"] if sched else D(0)
+    instalment, ins_m1 = c["instalment"], c["insurance_m1"]
     tot_interest = sum((r["interest"] for r in sched), D(0))
     tot_ins = sum((r["insurance"] for r in sched), D(0))
-    bank = _d(f.bank_fees_mad)
-    credit_cost = tot_interest + tot_ins + (bank if loan > 0 else 0)
-    cash = down + (0 if f.finance_acquisition_costs else total_costs) + (bank if loan > 0 else 0)
+    bank = c["bank_fees"]
+    credit_cost = tot_interest + tot_ins + bank
+    cash = c["cash"]
     all_in = price + total_costs
 
     res = SimulationResult(
@@ -127,11 +182,20 @@ def simulate(price_mad, params: FinancingParams, agency_listing: bool = False,
         total_insurance_mad=rnd(tot_ins), total_cost_of_credit_mad=rnd(credit_cost),
         total_cash_needed_mad=rnd(cash), all_in_price_mad=rnd(all_in),
         all_in_cost_mad=rnd(all_in + credit_cost),
+        scenario=name, down_payment_pct=float(down / price) if price else None,
+        min_down_payment_ok=bool(down >= price * _d(f.min_down_payment_pct)),
+        annual_rate_effective=float(effective_rate(f)),
+        max_debt_ratio=params.affordability.max_debt_ratio,
     )
+    income = required_income_mad(instalment + ins_m1, params, eur_mad)
+    if income is not None:
+        res.required_income_mad = rnd(income)
     if eur_mad:
         fx, band = _d(eur_mad), _d(params.fx.sensitivity_pct)
         res.eur_mad = eur_mad
         res.all_in_price_eur = rnd(all_in / fx)
         res.all_in_price_eur_band = (rnd(all_in / (fx * (1 + band))), rnd(all_in / (fx * (1 - band))))
         res.total_cash_needed_eur = rnd(cash / fx)
+        if income is not None:
+            res.required_income_eur = rnd(income / fx)
     return res
