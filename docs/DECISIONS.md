@@ -140,3 +140,33 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 
 34. **Pipeline stages** are now a list (`enrich`, `analyze`) run after crawling, each fail-soft
     and committed separately.
+
+## M5 — Telegram alerts
+
+35. **Raw Bot API over httpx, not python-telegram-bot.** We only need `sendMessage`/`sendPhoto`.
+    One less dependency (and its async runtime), and it's testable with respx. Swap if we ever
+    need inbound commands (v2: "/reject 123 ground floor" from the phone).
+
+36. **Alerts are rows in `alert_log` with a unique `key`**: `new_high_score:<property>` (once
+    ever), `price_drop:<property>:<day>`, `watch_removed:<property>:<day>`, `run_errors:<run>`.
+    Reruns never double-send. The queue survives failures: retried up to `max_send_attempts`, then
+    marked `failed`.
+
+37. **"Realtime" = end of each run** (the system runs daily). Quiet hours *hold* alerts as
+    `pending` and the first run after the window sends them. More than `max_alerts_per_run` → the
+    overflow goes into one digest message. `mode: digest` sends a single summary per run.
+
+38. **Triggers**: new in-profile listing with score ≥ threshold (also catches listings whose score
+    rises later, e.g. after extraction); price drop ≥ 5 % on watched or high-score listings; watched
+    listing removed. Listings noted `rejected` never alert.
+
+39. **Fail-soft pings are aggregated**: everything the pipeline `notify`s during a run becomes one
+    `run_errors` alert. Detail-page failures are now notified too. An FX feed outage only
+    pings once no usable rate is left within `max_staleness_days`.
+
+40. **`user_note` landed in M5** (PRD lists it under M7) because "watched listing removed" needs
+    a watchlist. CLI: `radar watch <id|url>`, `radar note <id|url> --status rejected --reason ...`.
+    It also has `actual_sale_price_mad` (PRD §9 mitigation).
+
+41. **No credentials = dry run.** Alerts are queued and logged, nothing is sent, and they go out once
+    the token is set.

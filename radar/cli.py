@@ -14,6 +14,7 @@ from radar.http import PoliteFetcher
 from radar.enrich.fx import rate_for
 from radar.llm.provider import build_provider
 from radar.models import Listing, ListingEvent, Property, PropertyFeature, Run, Status
+from radar.alerts.engine import AlertStage
 from radar.pipeline.analyze import Analyzer
 from radar.pipeline.enrich import Enricher
 from radar.pipeline.run import Pipeline, build_sources
@@ -41,7 +42,10 @@ def run(source: list[str] = typer.Option(None, "--source", "-s", help="Limit to 
     s, engine = _ctx()
     fetcher = PoliteFetcher(s.http, s.data_dir / "cache")
     enricher = Enricher(s, fetcher, build_provider(s.llm))
-    result = Pipeline(s, engine, build_sources(s, fetcher, source), stages=[enricher, Analyzer(s)]).run()
+    alerts = AlertStage(s)
+    enricher.notify = alerts.buffer_error
+    result = Pipeline(s, engine, build_sources(s, fetcher, source), notify=alerts.buffer_error,
+                      stages=[enricher, Analyzer(s), alerts]).run()
     typer.echo(json.dumps({"run_id": result.id, "status": result.status, "stats": result.stats}, indent=2))
     raise typer.Exit(0 if result.status != "failed" else 1)
 
@@ -195,6 +199,66 @@ def index() -> None:
             tr = " ".join(f"{d}d {getattr(r, f'trend_{d}d'):+.1%}" for d in (30, 90) if getattr(r, f"trend_{d}d") is not None)
             typer.echo(f"{z:10} median {r.median_m2:>7,.0f}  p25 {r.p25:>7,.0f}  p75 {r.p75:>7,.0f}  n={r.count:<3}"
                        f"{'' if r.reliable else ' (unreliable)'}  {tr}")
+
+
+def _resolve_property(db, ref: str) -> int:
+    """Accept a property id or a listing URL."""
+    if ref.isdigit():
+        if db.get(Property, int(ref)) is None:
+            raise typer.BadParameter(f"no property {ref}")
+        return int(ref)
+    l = db.exec(select(Listing).where(Listing.url == ref.split("?")[0])).first()
+    if l is None:
+        raise typer.BadParameter(f"no listing with url {ref}")
+    return l.property_id
+
+
+@app.command()
+def note(ref: str = typer.Argument(..., help="Property id or listing URL"),
+         status: str = typer.Option("watching", help="watching | visited | called | rejected"),
+         text: str = typer.Option(None, "--text"), reason: str = typer.Option(None, "--reason"),
+         sale_price: int = typer.Option(None, help="Actual sale price heard (MAD)")) -> None:
+    """Add to watchlist / record a note. `--status rejected --reason "..."` silences alerts."""
+    from datetime import datetime, timezone
+
+    from radar.models import NoteStatus, UserNote
+
+    _, engine = _ctx()
+    with Session(engine) as db:
+        pid = _resolve_property(db, ref)
+        n = db.get(UserNote, pid) or UserNote(property_id=pid, updated_at=datetime.now(timezone.utc))
+        n.status = NoteStatus(status)
+        n.note = text if text is not None else n.note
+        n.reject_reason = reason if reason is not None else n.reject_reason
+        n.actual_sale_price_mad = sale_price if sale_price is not None else n.actual_sale_price_mad
+        n.updated_at = datetime.now(timezone.utc)
+        db.add(n)
+        db.commit()
+        typer.echo(f"property {pid}: {n.status}")
+
+
+@app.command()
+def watch(ref: str) -> None:
+    """Shortcut: add a property (id or URL) to the watchlist."""
+    note(ref, status="watching", text=None, reason=None, sale_price=None)
+
+
+@app.command("alert-test")
+def alert_test() -> None:
+    """Send a test message to check the Telegram token + chat id (PRD M5)."""
+    from radar.alerts.telegram import TelegramClient, TelegramError, format_alert
+
+    s = Settings()
+    if not (s.telegram_token and s.telegram_chat_id):
+        typer.echo("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
+        raise typer.Exit(2)
+    try:
+        TelegramClient(s.telegram_token, s.telegram_chat_id).send(
+            format_alert({"type": "test", "messages": ["Telegram is wired up."]}))
+    except TelegramError as e:
+        typer.echo(f"failed: {e}")
+        raise typer.Exit(1)
+    typer.echo("sent")
 
 
 if __name__ == "__main__":

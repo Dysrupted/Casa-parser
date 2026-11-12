@@ -45,6 +45,7 @@ def default_pages() -> dict[str, str]:
         "https://www.mubawab.ma/fr/a/7712399/bel-appartement-anfa-superieur": "<html><body></body></html>",
         "https://www.mubawab.ma/fr/a/7712400/appartement-racine": "<html><body></body></html>",
         "https://www.mubawab.ma/fr/a/7712500/appartement-gauthier": "<html><body></body></html>",
+        "https://open.er-api.com/v6/latest/EUR#2026-11-01": '{"rates": {"MAD": 10.9}}',
     }
 
 

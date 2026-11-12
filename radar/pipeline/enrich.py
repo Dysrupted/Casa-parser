@@ -7,7 +7,7 @@ from datetime import date, datetime
 from sqlmodel import Session, or_, select
 
 from radar.config import Settings
-from radar.enrich.fx import refresh_rate
+from radar.enrich.fx import rate_for, refresh_rate
 from radar.enrich.geo import PRECISION_RANK, Geocoder
 from radar.http import Fetcher
 from radar.llm.provider import LLMError, LLMProvider, LLMUnavailable
@@ -41,9 +41,12 @@ class Enricher:
 
     def _fx(self, db, now, today, st):
         row = refresh_rate(db, self.s.fx, self.fetcher, today)
-        st["fx"] = row.eur_mad if row else None
+        st["fx"] = row.eur_mad if row else rate_for(db, self.s.fx, today)
         if row is None:
-            st["errors"].append("fx: no rate for today")
+            if st["fx"] is None:  # nothing usable within max_staleness_days: EUR outputs go null
+                st["errors"].append("fx: no usable EUR/MAD rate")
+            else:
+                st["fx_stale"] = True  # feed down today; yesterday's-ish rate still valid
 
     def _features(self, db: Session, now, today, st):
         listings = db.exec(select(Listing).where(Listing.status != Status.removed,

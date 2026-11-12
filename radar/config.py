@@ -8,6 +8,8 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 MIN_POLITE_DELAY_S = 3.0  # PRD F1 floor; config may only go above it.
@@ -124,6 +126,37 @@ class EnrichFile(BaseModel):
     fx: FxConfig
 
 
+class QuietHours(BaseModel):
+    start: str
+    end: str
+
+    def contains(self, hhmm: str) -> bool:
+        """True if local time `HH:MM` is inside the window (handles windows crossing midnight)."""
+        if self.start == self.end:
+            return False
+        if self.start < self.end:
+            return self.start <= hhmm < self.end
+        return hhmm >= self.start or hhmm < self.end
+
+
+class AlertTriggers(BaseModel):
+    new_high_score: bool = True
+    price_drop: bool = True
+    watch_removed: bool = True
+    run_errors: bool = True
+
+
+class AlertsConfig(BaseModel):
+    enabled: bool
+    mode: Literal["realtime", "digest"]
+    score_threshold: float = Field(ge=0, le=100)
+    price_drop_pct: float = Field(gt=0, lt=1)
+    triggers: AlertTriggers
+    quiet_hours: QuietHours | None = None
+    max_alerts_per_run: int = Field(ge=1)
+    max_send_attempts: int = Field(ge=1)
+
+
 def strip_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
@@ -175,6 +208,9 @@ class Settings:
         from radar.simulation.params import FinancingParams  # local: avoid import cycle
         self.financing = FinancingParams(**self._load("financing.yaml"))
         self.scoring = self._load("scoring.yaml")
+        self.alerts = AlertsConfig(**self._load("alerts.yaml"))
+        self.telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN") or None
+        self.telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID") or None
         _validate_scoring(self.scoring)
 
     def _load(self, name: str) -> dict:
