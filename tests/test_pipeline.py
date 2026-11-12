@@ -163,3 +163,47 @@ def test_unreachable_source_is_failed(settings, engine, clock):
     run = make(settings, engine, clock, {SEARCH: FetchError("blocked")})[0].run()
     assert run.status == "failed" and run.stats["mubawab"]["status"] == "failed"
     assert "FetchError: blocked" in run.stats["mubawab"]["errors"][0]
+
+
+def test_pipeline_with_enrichment(settings, engine, clock):
+    import json as _json
+
+    from radar.pipeline.enrich import Enricher
+    from tests.test_extract import FakeProvider, payload
+
+    pages = default_pages()
+    pages[f"{settings.fx.url}#2026-11-01"] = _json.dumps({"rates": {"MAD": 10.9}})
+    fetcher = FakeFetcher(pages)
+    prov = FakeProvider(payload(elevator={"value": True, "confidence": 0.95, "source_span": "avec ascenseur"}))
+    enr = Enricher(settings, fetcher, prov)
+    src = MubawabSource(settings.sources["mubawab"], fetcher)
+    run = Pipeline(settings, engine, [src], now=clock, enricher=enr).run()
+    e = run.stats["enrich"]
+    assert e["fx"] == 10.9 and e["llm"] == 1 and e["errors"] == []    # 1 listing has a description
+    assert e["geo"] == {"page": 1, "address": 0, "zone": 3, "none": 0}
+    a = listing(engine, "7712345")
+    assert a.address_raw == "Rue des Dunes, Aïn Diab, Casablanca"
+    with Session(engine) as db:
+        p = db.get(Property, a.property_id)
+        assert (p.lat, p.lon, p.geo_precision) == (33.5921, -7.6772, "page")
+        assert p.dist_corniche_m < 1500
+
+    # Same-day rerun: no new LLM calls (description unchanged)
+    Pipeline(settings, engine, [src], now=clock, enricher=enr).run()
+    assert prov.calls == 1
+
+
+def test_llm_unavailable_degrades_to_rules(settings, engine, clock):
+    from radar.llm.provider import LLMUnavailable
+    from radar.pipeline.enrich import Enricher
+    from tests.test_extract import FakeProvider
+
+    fetcher = FakeFetcher(default_pages())
+    msgs = []
+    enr = Enricher(settings, fetcher, FakeProvider(exc=LLMUnavailable("no key")), notify=msgs.append)
+    run = Pipeline(settings, engine, [MubawabSource(settings.sources["mubawab"], fetcher)],
+                   now=clock, enricher=enr, notify=msgs.append).run()
+    e = run.stats["enrich"]
+    assert e["llm"] == 0 and e["llm_pending"] == 1 and e["rules"] == 1
+    assert any("LLM unavailable" in m for m in msgs)
+    assert listing(engine, "7712345").extracted_hash is None   # will retry next run

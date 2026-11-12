@@ -10,6 +10,7 @@ http:
     search: 6               # same-day reruns hit the cache -> idempotent & polite
     detail: 168
     robots: 24
+    api: 720               # geocoding answers (30 d); FX is keyed per day so never stale
 
 pipeline:
   missing_runs_before_removed: 2   # complete crawls without the listing before status=removed
@@ -45,3 +46,6 @@ sources:
       detail_photos: ["div.slider img", "div#masonryPhoto img", "img.imgSlider"]
       detail_features: ["div.adMainFeature span", "div.adFeature span", "div.mainInfoProp span"]
       detail_agency: ["div.businessName", "p.link a", ".agencyName"]
+      detail_address: ["h3.greyTit", "div.adMainInfo h3", ".locationAddress"]
+      # Elements carrying map coordinates; first attr pair found wins.
+      detail_geo: ["#mapOpen", "div[data-lat]", "[data-latitude]"]

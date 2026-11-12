@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from datetime import date as date_
+from typing import Any
 from enum import StrEnum
 
 from sqlalchemy import Column, JSON, UniqueConstraint
@@ -31,6 +33,8 @@ class Property(SQLModel, table=True):
     bedrooms: int | None = None
     lat: float | None = None
     lon: float | None = None
+    geo_precision: str | None = None      # page | address | zone  (best -> worst)
+    dist_corniche_m: float | None = None
     first_seen: datetime
     last_seen: datetime
     status: Status = Status.active
@@ -54,6 +58,11 @@ class Listing(SQLModel, table=True):
     bedrooms: int | None = None
     bathrooms: int | None = None
     description: str | None = None
+    description_hash: str | None = None   # extraction re-runs only when this changes
+    extracted_hash: str | None = None     # description_hash the last extraction ran on
+    address_raw: str | None = None
+    page_lat: float | None = None         # coordinates embedded in the detail page, if any
+    page_lon: float | None = None
     photos: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     raw_html_path: str | None = None
     detail_fetched_at: datetime | None = None
@@ -95,3 +104,24 @@ class Run(SQLModel, table=True):
     finished_at: datetime | None = None
     status: str = "running"   # running | ok | partial | failed
     stats: dict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class PropertyFeature(SQLModel, table=True):
+    """Extracted attribute. One row per (property, field, extractor); null value = not found."""
+    __table_args__ = (UniqueConstraint("property_id", "field", "extracted_by"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="property.id", index=True)
+    source_listing_id: int = Field(foreign_key="listing.id")
+    field: str
+    value: Any = Field(default=None, sa_column=Column(JSON))
+    confidence: float = 0.0
+    extracted_by: str                     # rules | llm:<model>
+    source_span: str | None = None        # verbatim evidence from the description
+    extracted_at: datetime
+
+
+class FxRate(SQLModel, table=True):
+    date: date_ = Field(primary_key=True)
+    eur_mad: float
+    source: str

@@ -11,7 +11,9 @@ from sqlmodel import Session, func, select
 from radar.config import Settings
 from radar.db import init_db, make_engine
 from radar.http import PoliteFetcher
-from radar.models import Listing, ListingEvent, Run
+from radar.llm.provider import build_provider
+from radar.models import Listing, ListingEvent, Property, PropertyFeature, Run, Status
+from radar.pipeline.enrich import Enricher
 from radar.pipeline.run import Pipeline, build_sources
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -36,7 +38,8 @@ def run(source: list[str] = typer.Option(None, "--source", "-s", help="Limit to 
     """Crawl enabled sources, store listings + daily snapshots."""
     s, engine = _ctx()
     fetcher = PoliteFetcher(s.http, s.data_dir / "cache")
-    result = Pipeline(s, engine, build_sources(s, fetcher, source)).run()
+    enricher = Enricher(s, fetcher, build_provider(s.llm))
+    result = Pipeline(s, engine, build_sources(s, fetcher, source), enricher=enricher).run()
     typer.echo(json.dumps({"run_id": result.id, "status": result.status, "stats": result.stats}, indent=2))
     raise typer.Exit(0 if result.status != "failed" else 1)
 
@@ -53,6 +56,70 @@ def status() -> None:
     for zone, st, n in by:
         typer.echo(f"  {zone or '?':10} {st:8} {n}")
     typer.echo("events: " + ", ".join(f"{t}={n}" for t, n in events))
+    typer.echo("core-field coverage (active listings): " + json.dumps(_coverage(engine)))
+
+
+def _coverage(engine) -> dict:
+    """M2 acceptance metric: share of active listings with each core structured field."""
+    with Session(engine) as db:
+        rows = db.exec(select(Listing, Property).join(Property, Listing.property_id == Property.id)
+                       .where(Listing.status != Status.removed)).all()
+    if not rows:
+        return {}
+    checks = {
+        "price": lambda l, p: l.price_mad is not None,
+        "surface": lambda l, p: l.surface_m2 is not None,
+        "rooms": lambda l, p: l.rooms is not None or l.bedrooms is not None,
+        "zone": lambda l, p: l.zone is not None,
+        "geo": lambda l, p: p.lat is not None,
+        "description": lambda l, p: bool(l.description),
+    }
+    cov = {k: round(100 * sum(f(l, p) for l, p in rows) / len(rows), 1) for k, f in checks.items()}
+    cov["all_core"] = round(100 * sum(all(f(l, p) for f in checks.values()) for l, p in rows) / len(rows), 1)
+    cov["n"] = len(rows)
+    return cov
+
+
+@app.command()
+def enrich() -> None:
+    """Re-run FX, feature extraction and geo without crawling."""
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    s, engine = _ctx()
+    fetcher = PoliteFetcher(s.http, s.data_dir / "cache")
+    now = datetime.now(timezone.utc)
+    with Session(engine) as db:
+        st = Enricher(s, fetcher, build_provider(s.llm)).run(db, now, now.astimezone(ZoneInfo(s.pipeline.timezone)).date())
+    typer.echo(json.dumps(st, indent=2))
+
+
+@app.command()
+def spotcheck(n: int = typer.Option(20, "-n"), out: Path = typer.Option(Path("data/spotcheck.md")),
+              seed: int = typer.Option(0)) -> None:
+    """Write a Markdown sheet of N random listings: description vs extracted values + spans.
+
+    M2 acceptance: review it and confirm no value is fabricated.
+    """
+    import random
+
+    s, engine = _ctx()
+    with Session(engine) as db:
+        listings = db.exec(select(Listing).where(Listing.description.is_not(None))).all()
+        random.Random(seed).shuffle(listings)
+        lines = ["# Extraction spot-check", ""]
+        for l in listings[:n]:
+            lines += [f"## [{l.title or l.external_id}]({l.url})", "", f"> {l.description}", "",
+                      "| field | value | conf | by | span |", "|---|---|---|---|---|"]
+            feats = db.exec(select(PropertyFeature).where(PropertyFeature.property_id == l.property_id,
+                                                          PropertyFeature.value.is_not(None))
+                            .order_by(PropertyFeature.field, PropertyFeature.extracted_by)).all()
+            for f in feats:
+                lines.append(f"| {f.field} | {f.value} | {f.confidence:.2f} | {f.extracted_by} | {f.source_span or ''} |")
+            lines.append("")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines), encoding="utf-8")
+    typer.echo(f"wrote {min(n, len(listings))} listings -> {out}")
 
 
 @app.command("record-fixture")

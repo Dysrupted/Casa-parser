@@ -16,6 +16,7 @@ from sqlmodel import Session, select
 
 from radar.config import Settings
 from radar.http import FetchError
+from radar.normalize.extract import description_hash
 from radar.models import EventType, Listing, ListingEvent, ListingSnapshot, Property, Run, Status
 from radar.sources.base import RawListing, Source
 
@@ -35,8 +36,9 @@ class Pipeline:
         sources: list[Source],
         now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
         notify: Notifier = _log_notifier,
+        enricher=None,
     ):
-        self.s, self.engine, self.sources = settings, engine, sources
+        self.s, self.engine, self.sources, self.enricher = settings, engine, sources, enricher
         self.now, self.notify = now, notify
         self.tz = ZoneInfo(settings.pipeline.timezone)
 
@@ -58,6 +60,10 @@ class Pipeline:
                     stats[src.name] = {"status": "failed", "errors": [repr(e)]}
                     self.notify(f"Casa Radar: source {src.name} failed: {e!r}")
             statuses = {v["status"] for v in stats.values()}
+            if self.enricher is not None:
+                stats["enrich"] = self.enricher.run(db, started, started.astimezone(self.tz).date())
+                if stats["enrich"]["errors"]:
+                    self.notify(f"Casa Radar: enrichment issues: {stats['enrich']['errors'][:3]}")
             run.status = "ok" if statuses <= {"ok"} else ("failed" if statuses == {"failed"} else "partial")
             run.stats, run.finished_at = stats, self.now()
             db.add(run)
@@ -159,6 +165,10 @@ class Pipeline:
         path.write_text(html, encoding="utf-8")
         listing.raw_html_path, listing.detail_fetched_at = str(rel), now
         listing.description = d.description or listing.description
+        listing.description_hash = description_hash(listing.description)
+        listing.address_raw = d.address_raw or listing.address_raw
+        if d.lat is not None and d.lon is not None:
+            listing.page_lat, listing.page_lon = d.lat, d.lon
         if d.photos:
             listing.photos = d.photos
         listing.agency = listing.agency or d.agency

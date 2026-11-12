@@ -40,6 +40,9 @@ class DetailData(BaseModel):
     bedrooms: int | None = None
     bathrooms: int | None = None
     price_mad: int | None = None
+    address_raw: str | None = None
+    lat: float | None = None
+    lon: float | None = None
 
 
 @dataclass

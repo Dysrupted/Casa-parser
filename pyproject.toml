@@ -11,6 +11,8 @@ dependencies = [
   "pyyaml>=6",
   "typer>=0.12",
   "python-dotenv>=1",
+  "alembic>=1.13",
+  "anthropic>=2.8",
 ]
 
 [project.optional-dependencies]
