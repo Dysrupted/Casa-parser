@@ -5,199 +5,378 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casa Radar</title>
 <meta name="description" content="Daily asking prices for apartments for sale in Aïn Diab, Anfa, Racine and Gauthier, Casablanca.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f6f5f1;--panel:#fffffe;--fg:#1c1d1b;--muted:#64665f;--line:#e2e0d8;--accent:#0f6b63;--accent-soft:#d6e7e3;--good:#1f7a3a;--bad:#a8331f;
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-@media (prefers-color-scheme:dark){:root{--bg:#131513;--panel:#1b1e1c;--fg:#e9e9e4;--muted:#9da098;--line:#2c302d;--accent:#5fbcb0;--accent-soft:#21403b;--good:#7cd294;--bad:#f0907c}}
+/* Data-dense dashboard: summary first, then distribution, then shortlist, then the full list. */
+:root{
+  --bg:#f8fafc;--card:#ffffff;--fg:#0f1f3d;--muted:#475569;--line:#e2e8f0;--line-strong:#cbd5e1;
+  --primary:#1e40af;--primary-soft:#dbe6fd;--accent:#b45309;--accent-soft:#fef3c7;
+  --good:#15803d;--good-soft:#dcfce7;--bad:#b91c1c;--bad-soft:#fee2e2;--focus:#1e40af;
+  --font:"Fira Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:12px;--shadow:0 1px 2px rgba(15,31,61,.06),0 1px 1px rgba(15,31,61,.04);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0b1220;--card:#121b2e;--fg:#e6ecf6;--muted:#9fb0c8;--line:#1f2b42;--line-strong:#2c3a55;
+  --primary:#8fb0ff;--primary-soft:#1b2c55;--accent:#fbbf24;--accent-soft:#3a2a07;
+  --good:#4ade80;--good-soft:#0f2e1b;--bad:#f87171;--bad-soft:#3a1414;--focus:#8fb0ff;--shadow:none}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans)}
-.wrap{max-width:980px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:32px}
-h1{font:400 34px/1.15 var(--serif);margin:0;letter-spacing:-.01em}
-h2{font:600 18px/1.3 var(--sans);margin:0 0 4px}
-.muted{color:var(--muted);font-size:13px}
-.lede{font-size:17px;max-width:62ch;margin:10px 0 6px;text-wrap:pretty}
-.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.big{font:400 32px/1.1 var(--serif);font-variant-numeric:tabular-nums}
-.chart{width:100%;height:auto;display:block}
-.chart text{fill:var(--muted);font:12px var(--sans)}
-.chart .lbl{fill:var(--fg);font-size:13px}
-.chart .val{fill:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
-.matches{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.match{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;min-width:0}
-.match a{color:inherit;font-weight:600;text-decoration:none;overflow-wrap:anywhere}
-.match a:hover,.match a:focus-visible{text-decoration:underline;outline:none}
-.score{font:400 26px/1 var(--serif);font-variant-numeric:tabular-nums;color:var(--accent)}
-.facts{grid-column:1/-1;font-variant-numeric:tabular-nums}
-.why{grid-column:1/-1;margin:4px 0 0;padding-left:1.1em;color:var(--muted);font-size:13px}
-.pill{display:inline-block;padding:0 8px;border-radius:99px;background:var(--accent-soft);font-size:12px;margin-right:4px}
-.good{color:var(--good)}.bad{color:var(--bad)}
-.controls{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
-select{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td.t{white-space:normal;min-width:15em}
-td.t a{color:inherit}
-th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--panel)}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 15px/1.5 var(--font);font-variant-numeric:tabular-nums}
+a{color:var(--primary)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.01em;margin:0}
+.stamp{font-size:13px;color:var(--muted)}
+.stamp b{font-weight:500;color:var(--fg)}
+.lede{font-size:17px;line-height:1.55;margin:8px 0 0;max-width:68ch;text-wrap:pretty}
+.lede strong{font-weight:600}
+h2{font-size:18px;font-weight:600;margin:0}
+.sub{font-size:13px;color:var(--muted);margin:2px 0 12px;max-width:72ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .lbl{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kpi .val{font-size:28px;font-weight:600;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .val small{font-size:14px;font-weight:500;color:var(--muted)}
+.kpi .note{font-size:13px;color:var(--muted)}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .val{font-size:24px}}
+
+/* box plot */
+.plot{padding:12px 8px 4px}
+.plot svg{display:block;width:100%;height:auto}
+.plot text{fill:var(--muted);font:12px var(--font)}
+.plot .zl{fill:var(--fg);font-size:14px;font-weight:500}
+.plot .med{fill:var(--fg);font-size:13px;font-weight:600}
+.plot .grid{stroke:var(--line)}
+.plot .whisk{stroke:var(--line-strong);stroke-width:2}
+.plot .box{fill:var(--primary-soft);stroke:var(--primary);stroke-width:1.5}
+.plot .mline{stroke:var(--primary);stroke-width:3}
+.plot .out{fill:var(--card);stroke:var(--muted);stroke-width:1.5}
+.plot .hit{fill:transparent;cursor:pointer}
+.plot .row:focus{outline:none}
+.plot .row:focus .box,.plot .row:hover .box{fill:var(--accent-soft);stroke:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);padding:4px 12px 12px}
+.legend i{display:inline-block;vertical-align:-2px;margin-right:6px}
+.tip{min-height:20px;font-size:13px;padding:0 12px 10px;color:var(--fg)}
+details.stats{padding:0 12px 12px;font-size:13px}
+details.stats summary{cursor:pointer;color:var(--primary);font-weight:500;padding:6px 0}
+.mini{border-collapse:collapse;width:100%;font-size:13px}
+.mini th,.mini td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.mini th:first-child,.mini td:first-child{text-align:left}
+.mini th{color:var(--muted);font-weight:500}
+
+/* shortlist */
+.matches{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.m{padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0;transition:border-color .2s}
+.m:hover{border-color:var(--line-strong)}
+.m-head{display:flex;gap:12px;align-items:flex-start}
+.m-title{flex:1;min-width:0;font-weight:600;line-height:1.35;color:var(--fg);text-decoration:none;overflow-wrap:anywhere}
+.m-title:hover{text-decoration:underline}
+.score{flex:none;min-width:48px;text-align:center;border-radius:10px;padding:4px 8px;background:var(--primary-soft);color:var(--primary);font-weight:700;font-size:18px;line-height:1.1}
+.score span{display:block;font-size:10px;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+.m-price{font-size:20px;font-weight:600}
+.m-price small{font-size:13px;font-weight:400;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;font-weight:500;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);white-space:nowrap}
+.chip.good{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.chip.bad{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+.why{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--muted)}
+.why li::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);margin-right:8px;vertical-align:2px}
+
+/* filters */
+.filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:12px}
+.seg{display:inline-flex;flex-wrap:wrap;gap:4px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.seg button{font:500 13px var(--font);color:var(--muted);background:transparent;border:0;border-radius:7px;padding:7px 12px;min-height:36px;cursor:pointer;transition:background .15s,color .15s}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+@media (prefers-color-scheme:dark){.seg button[aria-pressed="true"]{color:#0b1220}}
+.seg button:hover:not([aria-pressed="true"]){background:var(--bg);color:var(--fg)}
+.count{font-size:13px;color:var(--muted);margin-left:auto}
+
+/* table (desktop) */
+.tablewrap{overflow-x:auto}
+table.list{border-collapse:collapse;width:100%;font-size:14px}
+.list th{position:sticky;top:0;background:var(--card);text-align:left;font-weight:500;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line-strong);padding:0}
+.list th button{all:unset;display:flex;gap:4px;align-items:center;padding:10px 12px;cursor:pointer;width:100%;box-sizing:border-box}
+.list th.num button{justify-content:flex-end}
+.list th button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.list th[aria-sort] button::after{content:"";border:4px solid transparent;margin-left:2px}
+.list th[aria-sort="ascending"] button::after{border-bottom-color:currentColor;margin-top:-4px}
+.list th[aria-sort="descending"] button::after{border-top-color:currentColor;margin-top:4px}
+.list td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.list tr:last-child td{border-bottom:0}
+.list tbody tr{transition:background .15s}
+.list tbody tr:hover{background:var(--bg)}
+.list td.t{white-space:normal;min-width:16em;max-width:28em}
+.list td.t a{color:var(--fg);text-decoration:none;font-weight:500}
+.list td.t a:hover{text-decoration:underline}
 .num{text-align:right}
-tr:last-child td{border-bottom:0}
-details{color:var(--muted);font-size:13px}
-details li{max-width:72ch;margin-bottom:4px}
-@media (max-width:560px){.tile{padding:12px}.big{font-size:24px}.tile .muted{font-size:12px}}
-footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+.vs.good{color:var(--good);font-weight:600}.vs.bad{color:var(--bad);font-weight:600}
+.dim{color:var(--muted)}
+
+/* cards (phone) */
+.rows-cards{display:none;flex-direction:column;gap:8px}
+.rc{padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
+.rc a{color:var(--fg);font-weight:500;text-decoration:none;overflow-wrap:anywhere}
+.rc .p{font-weight:600}
+.rc .meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;color:var(--muted)}
+.sortsel{display:none;align-items:center}
+@media (max-width:760px){.tablecard{display:none}.rows-cards{display:flex}.sortsel{display:inline-flex}}
+.sortsel select{font:500 13px var(--font);color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:38px}
+
+details.how{font-size:14px;color:var(--muted)}
+details.how summary{cursor:pointer;color:var(--fg);font-weight:500}
+details.how li{max-width:72ch;margin:6px 0}
+footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Casa Radar</h1>
+    <div class="top">
+      <h1>Casa Radar</h1>
+      <span class="stamp">Updated <b><time datetime="{{ meta.run_at_iso }}">{{ meta.run_at_label }}</time></b></span>
+    </div>
     <p class="lede" id="takeaway"></p>
-    <p class="muted">Apartments for sale in Aïn Diab, Anfa, Racine and Gauthier (Casablanca). Asking prices from Mubawab and Avito, updated <time id="updated" datetime="{{ meta.run_at_iso }}">{{ meta.run_at_label }}</time>.</p>
   </header>
 
-  <section class="tiles" aria-label="Summary">
-    <div class="tile"><span class="muted">Listings tracked</span><span class="big" id="k-tracked"></span><span class="muted">active, all sizes</span></div>
-    <div class="tile"><span class="muted">80–100 m² matches</span><span class="big" id="k-profile"></span><span class="muted">in the target zones</span></div>
-    <div class="tile"><span class="muted">Cheapest zone per m²</span><span class="big" id="k-cheap"></span><span class="muted" id="k-cheap-sub"></span></div>
+  <section class="kpis" aria-label="Key figures">
+    <div class="card kpi"><span class="lbl">Listings tracked</span><span class="val" id="k-tracked"></span><span class="note">Aïn Diab, Anfa, Racine, Gauthier</span></div>
+    <div class="card kpi"><span class="lbl">80–100 m² matches</span><span class="val" id="k-profile"></span><span class="note">in those four zones</span></div>
+    <div class="card kpi"><span class="lbl">Median price</span><span class="val" id="k-median"></span><span class="note">per m², all four zones</span></div>
+    <div class="card kpi"><span class="lbl">Cheapest zone</span><span class="val" id="k-cheap"></span><span class="note" id="k-cheap-sub"></span></div>
   </section>
 
   <section aria-labelledby="h-zones">
     <h2 id="h-zones">Asking price per m² by zone</h2>
-    <p class="muted">Dot is the median. The bar spans the middle half of listings (25th to 75th percentile). Asking prices, not sale prices.</p>
-    <div id="zchart"></div>
+    <p class="sub">The box holds the middle half of listings, the thick line is the median, whiskers reach the typical range and dots are unusual prices. Tap or focus a zone for its figures.</p>
+    <div class="card">
+      <div class="plot" id="plot"></div>
+      <div class="tip" id="tip" aria-live="polite"></div>
+      <div class="legend" aria-hidden="true">
+        <span><i style="width:18px;height:10px;background:var(--primary-soft);border:1.5px solid var(--primary);border-radius:3px"></i>Middle 50%</span>
+        <span><i style="width:3px;height:12px;background:var(--primary)"></i>Median</span>
+        <span><i style="width:9px;height:9px;border:1.5px solid var(--muted);border-radius:50%"></i>Unusual price</span>
+        <span><i style="width:0;height:0;border-left:7px solid var(--muted);border-top:5px solid transparent;border-bottom:5px solid transparent"></i>Off the scale (likely a typo in the ad)</span>
+      </div>
+      <details class="stats"><summary>Show the figures as a table</summary>
+        <div class="tablewrap"><table class="mini" aria-label="Price per m² statistics by zone">
+          <thead><tr><th>Zone</th><th>Listings</th><th>25th pct</th><th>Median</th><th>75th pct</th></tr></thead>
+          <tbody id="stats"></tbody></table></div>
+      </details>
+    </div>
   </section>
 
   <section aria-labelledby="h-best">
     <h2 id="h-best">Best 80–100 m² matches</h2>
-    <p class="muted">Ranked by Casa Radar's score: price against the zone median, zone, distance to the Corniche, features, building and market signals.</p>
+    <p class="sub">Ranked by score out of 100: price against the zone median, zone, distance to the Corniche, features, building and market signals.</p>
     <div class="matches" id="matches"></div>
   </section>
 
   <section aria-labelledby="h-all">
     <h2 id="h-all">All listings</h2>
-    <div class="controls">
-      <select id="zone" aria-label="Zone"><option value="">All zones</option></select>
-      <select id="size" aria-label="Size">
-        <option value="">All sizes</option><option value="profile">80–100 m²</option>
-      </select>
-      <select id="sort" aria-label="Sort">
-        <option value="score">Sort: score</option><option value="price_vs_zone">Sort: cheapest vs zone</option>
-        <option value="price_mad">Sort: price</option><option value="price_m2">Sort: price per m²</option>
-        <option value="surface_m2">Sort: surface</option><option value="first_seen">Sort: newest</option>
-      </select>
+    <p class="sub">“vs zone” compares a listing’s price per m² with its zone’s median: under 1.00× is cheaper than usual.</p>
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Zone" id="f-zone"></div>
+      <div class="seg" role="group" aria-label="Size" id="f-size">
+        <button type="button" data-v="" aria-pressed="true">All sizes</button>
+        <button type="button" data-v="profile" aria-pressed="false">80–100 m²</button>
+      </div>
+      <label class="sortsel">
+        <span class="dim" style="font-size:13px;margin-right:6px">Sort</span>
+        <select id="f-sort" aria-label="Sort listings">
+          <option value="score:desc">Best score</option><option value="price_vs_zone:asc">Cheapest vs zone</option>
+          <option value="price_mad:asc">Lowest price</option><option value="price_m2:asc">Lowest price per m²</option>
+          <option value="surface_m2:desc">Largest</option><option value="first_seen:desc">Newest</option>
+        </select>
+      </label>
+      <span class="count" id="count" aria-live="polite"></span>
     </div>
-    <p class="muted" id="count"></p>
-    <div class="tablewrap">
-      <table aria-label="Listings">
-        <thead><tr><th class="num">Score</th><th>Zone</th><th>Listing</th><th class="num">Price (MAD)</th><th class="num">≈ EUR</th><th class="num">m²</th><th class="num">MAD/m²</th><th class="num">vs zone</th><th>Source</th></tr></thead>
+    <div class="card tablecard tablewrap">
+      <table class="list" aria-label="Listings">
+        <thead><tr>
+          <th class="num" data-k="score"><button type="button">Score</button></th>
+          <th data-k="zone_label"><button type="button">Zone</button></th>
+          <th data-k="title"><button type="button">Listing</button></th>
+          <th class="num" data-k="price_mad"><button type="button">Price MAD</button></th>
+          <th class="num" data-k="surface_m2"><button type="button">m²</button></th>
+          <th class="num" data-k="price_m2"><button type="button">MAD / m²</button></th>
+          <th class="num" data-k="price_vs_zone"><button type="button">vs zone</button></th>
+          <th data-k="sources"><button type="button">Source</button></th>
+        </tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
+    <div class="rows-cards" id="rows-cards"></div>
   </section>
 
-  <details>
-    <summary>How this works</summary>
+  <details class="how">
+    <summary>How this is collected</summary>
     <ul>
-      <li>Collected daily by Casa Radar, an open-source personal monitor. Each row links to the original ad; contact sellers there.</li>
-      <li>Mubawab allows only the first page of each neighbourhood search to be crawled, so it contributes the ~30 newest or promoted listings per neighbourhood each day. Avito is read across Casablanca, newest first, and filtered to these zones. Rentals posted as sales are removed.</li>
-      <li>"vs zone" is a listing's price per m² divided by its zone's median. Under 1.00 means cheaper than the typical asking price there.</li>
-      <li>The same flat advertised on both sites is shown once.</li>
-      <li>EUR uses the day's EUR/MAD rate ({{ meta.eur_mad_label }}).</li>
+      <li>Collected daily by Casa Radar from Mubawab and Avito. Each listing links to the original ad, where sellers can be contacted.</li>
+      <li>Mubawab allows only the first page of each neighbourhood search to be read, so it contributes its ~30 newest or promoted listings per zone each day. Avito is read across Casablanca, newest first, and filtered to these zones. Rentals posted as sales are removed, and a flat advertised on both sites appears once.</li>
+      <li>These are sellers’ asking prices, not sale prices. EUR amounts use the day’s rate ({{ meta.eur_mad_label }}).</li>
     </ul>
   </details>
-  <footer>Casa Radar · data as of {{ meta.run_at_label }} · prices are sellers' asking prices and may be outdated.</footer>
+  <footer>Casa Radar · data as of {{ meta.run_at_label }}</footer>
 </div>
 
 <script id="data" type="application/json">{{ data_json | safe }}</script>
 <script>
 (() => {
   const D = JSON.parse(document.getElementById('data').textContent);
-  const L = D.listings, Z = D.zones.filter((z) => z.median_m2 != null);
-  const fmt = (v) => v == null ? '—' : Math.round(v).toLocaleString('fr-FR').replace(/ | /g, ' ');
+  const L = D.listings;
+  const Z = D.zones.filter((z) => z.median_m2 != null).sort((a, b) => a.median_m2 - b.median_m2);
   const $ = (id) => document.getElementById(id);
-  const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, props); e.append(...kids); return e; };
-  const prof = L.filter((r) => r.in_profile).sort((a, b) => b.score - a.score);
-  const zs = [...Z].sort((a, b) => a.median_m2 - b.median_m2);
+  const h = (tag, props = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k === 'class') e.className = v; else if (k in e) e[k] = v; else e.setAttribute(k, v); } e.append(...kids.filter((k) => k != null && k !== '')); return e; };
+  const fmt = (v) => v == null ? '—' : Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const short = (v) => v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 1 : 2).replace(/\.?0+$/, '') + ' M' : fmt(v);
+  const vsClass = (p) => !p ? '' : p < 0.97 ? 'good' : p > 1.03 ? 'bad' : '';
+  const vsText = (p) => p ? p.toFixed(2) + '×' : '—';
+  const quant = (xs, q) => { const s = [...xs].sort((a, b) => a - b), i = (s.length - 1) * q, lo = Math.floor(i); return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo); };
 
-  // takeaway + tiles
-  const t = prof[0];
-  const parts = [];
-  if (t) parts.push(`${prof.length} listing${prof.length > 1 ? 's' : ''} of 80–100 m² today; the top-ranked is in ${t.zone_label} at ${fmt(t.price_mad)} MAD for ${t.surface_m2} m²` +
-    (t.price_vs_zone ? `, ${Math.abs(Math.round((t.price_vs_zone - 1) * 100))}% ${t.price_vs_zone < 1 ? 'below' : 'above'} the zone median.` : '.'));
-  if (zs.length > 1) parts.push(`${zs[0].zone_label} is the cheapest zone per m² (median ${fmt(zs[0].median_m2)} MAD), ${zs.at(-1).zone_label} the most expensive (${fmt(zs.at(-1).median_m2)} MAD).`);
-  $('takeaway').textContent = parts.join(' ');
+  // ---- summary
+  const prof = L.filter((r) => r.in_profile).sort((a, b) => b.score - a.score);
+  const allM2 = L.filter((r) => r.price_m2).map((r) => r.price_m2);
+  const t = prof[0], cheap = Z[0], dear = Z.at(-1);
+  const lede = $('takeaway');
+  if (t) {
+    const pct = t.price_vs_zone ? Math.round(Math.abs(t.price_vs_zone - 1) * 100) : null;
+    lede.append(h('strong', {}, `${prof.length} flats of 80–100 m²`), ' are on the market in the four zones today. The top-ranked is in ',
+      h('strong', {}, t.zone_label), ` at ${fmt(t.price_mad)} MAD for ${t.surface_m2} m²` + (pct != null ? `, ${pct}% ${t.price_vs_zone < 1 ? 'below' : 'above'} the zone median.` : '.'));
+  } else lede.append('No 80–100 m² flat is listed in the four zones today.');
+  if (cheap && dear && cheap !== dear) lede.append(` ${cheap.zone_label} is the cheapest zone per m² (${fmt(cheap.median_m2)} MAD), ${dear.zone_label} the most expensive (${fmt(dear.median_m2)} MAD).`);
   $('k-tracked').textContent = fmt(L.length);
   $('k-profile').textContent = fmt(prof.length);
-  if (zs[0]) { $('k-cheap').textContent = zs[0].zone_label; $('k-cheap-sub').textContent = `median ${fmt(zs[0].median_m2)} MAD/m²`; }
+  $('k-median').replaceChildren(allM2.length ? fmt(quant(allM2, .5)) : '—', h('small', {}, ' MAD'));
+  if (cheap) { $('k-cheap').textContent = cheap.zone_label; $('k-cheap-sub').textContent = `${fmt(cheap.median_m2)} MAD per m²`; }
 
-  // zone chart (inline SVG, redrawn on resize)
+  // ---- box plot (quartiles from the zone index; whiskers/outliers from that zone's listings)
   const NS = 'http://www.w3.org/2000/svg';
-  const svgEl = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
-  function drawZones() {
-    const box = $('zchart'); box.replaceChildren();
-    const W = Math.max(300, box.clientWidth), rowH = 46, top = 6, bottom = 26, left = 84, right = 20, H = top + bottom + zs.length * rowH;
-    const lo = Math.min(...zs.map((z) => z.p25_m2 ?? z.median_m2)) * 0.95, hi = Math.max(...zs.map((z) => z.p75_m2 ?? z.median_m2)) * 1.03;
-    const x = (v) => left + (v - lo) / (hi - lo) * (W - left - right);
-    const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img', 'aria-label': 'Median asking price per square metre by zone with interquartile range' });
-    const step = 5000, n = Math.floor((W - left - right) / 70);
-    let ticks = []; for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
-    while (ticks.length > n && ticks.length > 2) ticks = ticks.filter((_, i) => i % 2 === 0);
-    for (const v of ticks) {
-      svg.append(svgEl('line', { x1: x(v), x2: x(v), y1: top, y2: H - bottom, stroke: 'var(--line)' }));
-      svg.append(svgEl('text', { x: x(v), y: H - 8, 'text-anchor': 'middle' }, `${v / 1000}k`));
+  const s = (tag, attrs = {}, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+  const stats = Z.map((z) => {
+    const xs = L.filter((r) => r.zone === z.zone && r.price_m2).map((r) => r.price_m2);
+    const iqr = z.p75_m2 - z.p25_m2, lo = z.p25_m2 - 1.5 * iqr, hi = z.p75_m2 + 1.5 * iqr;
+    const inside = xs.filter((x) => x >= lo && x <= hi);
+    return { ...z, wlo: Math.min(z.p25_m2, ...inside), whi: Math.max(z.p75_m2, ...inside), out: xs.filter((x) => x < lo || x > hi) };
+  });
+  $('stats').replaceChildren(...stats.map((z) => h('tr', {}, h('td', {}, z.zone_label), h('td', {}, fmt(z.listings_in_index)),
+    h('td', {}, fmt(z.p25_m2)), h('td', {}, h('b', {}, fmt(z.median_m2))), h('td', {}, fmt(z.p75_m2)))));
+  const tip = $('tip');
+  const say = (z) => { tip.replaceChildren(h('b', {}, z.zone_label), `: median ${fmt(z.median_m2)} MAD/m², middle half ${fmt(z.p25_m2)}–${fmt(z.p75_m2)}, ${z.listings_in_index} listings` + (z.out.length ? `, ${z.out.length} unusual` : '') + (z.out.some((v) => v > 2.5 * z.p75_m2) ? ` (highest ${fmt(Math.max(...z.out))} MAD/m², likely a typo in the ad)` : '') + '.'); };
+  function plot() {
+    const box = $('plot'); box.replaceChildren();
+    if (!stats.length) { box.append(h('p', { class: 'sub' }, 'No zone has priced listings yet.')); return; }
+    const W = Math.max(320, box.clientWidth - 16), narrow = W < 520;
+    const left = narrow ? 76 : 96, right = 16, top = 8, rowH = narrow ? 58 : 62, axis = 26, H = top + stats.length * rowH + axis;
+    // Scale to the whiskers; outliers far beyond them (often typos on the site) are pinned to the edge.
+    const wl = Math.min(...stats.map((z) => z.wlo)), wh = Math.max(...stats.map((z) => z.whi)), span = wh - wl;
+    const near = stats.flatMap((z) => z.out).filter((v) => v >= wl - 0.3 * span && v <= wh + 0.3 * span);
+    const lo = Math.min(wl, ...near), hi = Math.max(wh, ...near), pad = (hi - lo) * 0.05;
+    const xr = (v) => left + (v - lo + pad) / (hi - lo + 2 * pad) * (W - left - right);
+    const x = (v) => xr(Math.min(hi + pad, Math.max(lo - pad, v)));
+    const off = (v) => v < lo - pad || v > hi + pad;
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Box plot of asking price per square metre by zone' });
+    const maxTicks = Math.max(4, Math.floor((W - left - right) / 56));
+    const raw = (hi - lo + 2 * pad) / maxTicks, mag = 10 ** Math.floor(Math.log10(raw));
+    let step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((st) => st >= raw);
+    const count = (st) => Math.floor((hi + pad) / st) - Math.ceil((lo - pad) / st) + 1;
+    while (count(step) < 3) step /= 2;   // always at least three labelled gridlines
+    for (let v = Math.ceil((lo - pad) / step) * step; v <= hi + pad; v += step) {
+      svg.append(s('line', { x1: xr(v), x2: xr(v), y1: top, y2: H - axis + 4, class: 'grid' }));
+      svg.append(s('text', { x: xr(v), y: H - 6, 'text-anchor': 'middle' }, `${+(v / 1000).toFixed(1)}k`));
     }
-    zs.forEach((z, i) => {
-      const cy = top + i * rowH + rowH / 2 + 6;
-      svg.append(svgEl('text', { x: left - 10, y: cy + 4, 'text-anchor': 'end', class: 'lbl' }, z.zone_label));
-      const a = x(z.p25_m2 ?? z.median_m2), b = x(z.p75_m2 ?? z.median_m2);
-      svg.append(svgEl('rect', { x: a, y: cy - 6, width: Math.max(2, b - a), height: 12, rx: 6, fill: 'var(--accent-soft)' }));
-      svg.append(svgEl('circle', { cx: x(z.median_m2), cy, r: 6, fill: 'var(--accent)' }));
-      svg.append(svgEl('text', { x: x(z.median_m2), y: cy - 12, 'text-anchor': 'middle', class: 'val' }, fmt(z.median_m2)));
-      const tip = svgEl('title', {}, `${z.zone_label}: median ${fmt(z.median_m2)} MAD/m², middle half ${fmt(z.p25_m2)}–${fmt(z.p75_m2)}, ${z.listings_in_index} listings`);
-      svg.lastChild.append(tip);
+    stats.forEach((z, i) => {
+      const cy = top + i * rowH + rowH / 2 + 4;
+      const g = s('g', { class: 'row', tabindex: 0, role: 'button', 'aria-label': `${z.zone_label}: median ${fmt(z.median_m2)} MAD per square metre` });
+      g.append(s('rect', { x: 0, y: cy - rowH / 2, width: W, height: rowH, class: 'hit' }));
+      g.append(s('text', { x: left - 12, y: cy + 5, 'text-anchor': 'end', class: 'zl' }, z.zone_label));
+      g.append(s('line', { x1: x(z.wlo), x2: x(z.p25_m2), y1: cy, y2: cy, class: 'whisk' }));
+      g.append(s('line', { x1: x(z.p75_m2), x2: x(z.whi), y1: cy, y2: cy, class: 'whisk' }));
+      for (const v of [z.wlo, z.whi]) g.append(s('line', { x1: x(v), x2: x(v), y1: cy - 6, y2: cy + 6, class: 'whisk' }));
+      g.append(s('rect', { x: x(z.p25_m2), y: cy - 11, width: Math.max(2, x(z.p75_m2) - x(z.p25_m2)), height: 22, rx: 4, class: 'box' }));
+      g.append(s('line', { x1: x(z.median_m2), x2: x(z.median_m2), y1: cy - 11, y2: cy + 11, class: 'mline' }));
+      for (const v of z.out) {
+        if (!off(v)) { g.append(s('circle', { cx: x(v), cy, r: 4, class: 'out' })); continue; }
+        const ex = x(v), d = v > hi ? 1 : -1;   // off-scale: arrow at the edge
+        g.append(s('path', { d: `M${ex - 5 * d},${cy - 5} L${ex + 2 * d},${cy} L${ex - 5 * d},${cy + 5}`, fill: 'none', stroke: 'var(--muted)', 'stroke-width': 2 }));
+      }
+      g.append(s('text', { x: x(z.median_m2), y: cy - 16, 'text-anchor': 'middle', class: 'med' }, fmt(z.median_m2)));
+      for (const ev of ['pointerenter', 'focus', 'click']) g.addEventListener(ev, () => say(z));
+      svg.append(g);
     });
     box.append(svg);
   }
-  drawZones();
-  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawZones, 120); });
+  plot(); if (stats[0]) say(stats[0]);
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(plot, 120); });
 
-  // best matches
-  const vsSpan = (p) => { if (!p) return ''; const s = el('span', { textContent: `${p.toFixed(2)}× zone median` }); s.className = p < 0.97 ? 'good' : p > 1.03 ? 'bad' : ''; return s; };
+  // ---- shortlist
   const mbox = $('matches');
-  if (!prof.length) mbox.append(el('p', { className: 'muted', textContent: 'No 80–100 m² listing in this snapshot.' }));
+  if (!prof.length) mbox.append(h('p', { class: 'sub' }, 'No 80–100 m² flat in this snapshot.'));
   for (const r of prof.slice(0, 9)) {
-    const why = el('ul', { className: 'why' }, ...r.reasons.map((x) => el('li', { textContent: x })));
-    mbox.append(el('article', { className: 'match' },
-      el('a', { href: r.url, target: '_blank', rel: 'noopener', textContent: r.title || 'Listing' }),
-      el('div', { className: 'score', textContent: Math.round(r.score), title: 'Score out of 100' }),
-      el('div', { className: 'facts' }, `${fmt(r.price_mad)} MAD · ${r.surface_m2} m² · `, el('span', { className: 'pill', textContent: r.zone_label }), vsSpan(r.price_vs_zone)),
-      why));
+    mbox.append(h('article', { class: 'card m' },
+      h('div', { class: 'm-head' },
+        h('a', { class: 'm-title', href: r.url, target: '_blank', rel: 'noopener' }, r.title || 'Listing'),
+        h('div', { class: 'score', 'aria-label': `Score ${Math.round(r.score)} out of 100` }, String(Math.round(r.score)), h('span', {}, 'score'))),
+      h('div', { class: 'm-price' }, `${fmt(r.price_mad)} MAD`, r.price_eur ? h('small', {}, ` · ≈ ${fmt(r.price_eur)} €`) : null),
+      h('div', { class: 'chips' },
+        h('span', { class: 'chip' }, r.zone_label), h('span', { class: 'chip' }, `${r.surface_m2} m²`),
+        h('span', { class: 'chip' }, `${fmt(r.price_m2)} MAD/m²`),
+        r.price_vs_zone ? h('span', { class: 'chip ' + vsClass(r.price_vs_zone) }, `${vsText(r.price_vs_zone)} zone median`) : null),
+      r.reasons.length ? h('ul', { class: 'why' }, ...r.reasons.map((x) => h('li', {}, x))) : null));
   }
 
-  // table
-  for (const z of zs) $('zone').append(new Option(z.zone_label, z.zone));
-  function drawTable() {
-    const zone = $('zone').value, size = $('size').value, key = $('sort').value;
-    const desc = ['score', 'surface_m2', 'first_seen'].includes(key);
-    const rows = L.filter((r) => (!zone || r.zone === zone) && (!size || r.in_profile))
-      .sort((a, b) => { const x = a[key], y = b[key]; if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1); });
+  // ---- full list: filters, sort, table + phone cards
+  const state = { zone: '', size: '', key: 'score', dir: 'desc' };
+  const zseg = $('f-zone');
+  for (const [v, label] of [['', 'All zones'], ...Z.map((z) => [z.zone, z.zone_label])])
+    zseg.append(h('button', { type: 'button', 'data-v': v, 'aria-pressed': String(v === '') }, label));
+  const wire = (seg, field) => seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    state[field] = b.dataset.v; for (const x of seg.querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b)); render();
+  });
+  wire(zseg, 'zone'); wire($('f-size'), 'size');
+  for (const th of document.querySelectorAll('.list th')) th.querySelector('button').addEventListener('click', () => {
+    const k = th.dataset.k; state.dir = state.key === k ? (state.dir === 'asc' ? 'desc' : 'asc') : (['score', 'surface_m2', 'first_seen'].includes(k) ? 'desc' : 'asc');
+    state.key = k; $('f-sort').value = `${k}:${state.dir}`; render();
+  });
+  $('f-sort').addEventListener('change', (e) => { [state.key, state.dir] = e.target.value.split(':'); render(); });
+  function render() {
+    const rows = L.filter((r) => (!state.zone || r.zone === state.zone) && (!state.size || r.in_profile)).sort((a, b) => {
+      let x = a[state.key], y = b[state.key];
+      if (Array.isArray(x)) { x = x.join(); y = y.join(); }
+      if (x == null || x === '') return 1; if (y == null || y === '') return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * (state.dir === 'asc' ? 1 : -1);
+    });
+    for (const th of document.querySelectorAll('.list th')) {
+      if (th.dataset.k === state.key) th.setAttribute('aria-sort', state.dir === 'asc' ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort');
+    }
     $('count').textContent = `${rows.length} listing${rows.length === 1 ? '' : 's'}`;
-    $('rows').replaceChildren(...rows.map((r) => {
-      const p = r.price_vs_zone;
-      const vs = el('td', { className: 'num' + (p ? (p < 0.97 ? ' good' : p > 1.03 ? ' bad' : '') : ''), textContent: p ? p.toFixed(2) + '×' : '—' });
-      return el('tr', {},
-        el('td', { className: 'num', textContent: r.score == null ? '—' : Math.round(r.score) }),
-        el('td', { textContent: r.zone_label }),
-        el('td', { className: 't' }, el('a', { href: r.url, target: '_blank', rel: 'noopener', textContent: r.title || 'Listing' })),
-        el('td', { className: 'num', textContent: fmt(r.price_mad) }), el('td', { className: 'num', textContent: fmt(r.price_eur) }),
-        el('td', { className: 'num', textContent: r.surface_m2 ?? '—' }), el('td', { className: 'num', textContent: fmt(r.price_m2) }),
-        vs, el('td', { textContent: r.sources.join(' + ') }));
-    }));
+    $('rows').replaceChildren(...rows.map((r) => h('tr', {},
+      h('td', { class: 'num' }, r.score == null ? '—' : h('b', {}, String(Math.round(r.score)))),
+      h('td', {}, r.zone_label),
+      h('td', { class: 't' }, h('a', { href: r.url, target: '_blank', rel: 'noopener' }, r.title || 'Listing')),
+      h('td', { class: 'num' }, fmt(r.price_mad)), h('td', { class: 'num' }, r.surface_m2 ?? '—'), h('td', { class: 'num' }, fmt(r.price_m2)),
+      h('td', { class: 'num vs ' + vsClass(r.price_vs_zone) }, vsText(r.price_vs_zone)),
+      h('td', { class: 'dim' }, r.sources.join(' + ')))));
+    $('rows-cards').replaceChildren(...rows.slice(0, 80).map((r) => h('article', { class: 'card rc' },
+      h('a', { href: r.url, target: '_blank', rel: 'noopener' }, r.title || 'Listing'),
+      h('span', { class: 'p' }, r.price_mad ? short(r.price_mad) + ' MAD' : '—'),
+      h('div', { class: 'meta' },
+        h('span', {}, r.zone_label), h('span', {}, r.surface_m2 ? `${r.surface_m2} m²` : 'size n/a'),
+        r.price_m2 ? h('span', {}, `${fmt(r.price_m2)}/m²`) : null,
+        r.price_vs_zone ? h('span', { class: 'vs ' + vsClass(r.price_vs_zone) }, `${vsText(r.price_vs_zone)} zone`) : null,
+        r.score != null ? h('span', {}, `score ${Math.round(r.score)}`) : null))));
+    if (rows.length > 80) $('rows-cards').append(h('p', { class: 'sub' }, `Showing 80 of ${rows.length}. Filter by zone or size to narrow the list.`));
   }
-  for (const id of ['zone', 'size', 'sort']) $(id).addEventListener('change', drawTable);
-  drawTable();
+  render();
 })();
 </script>
 </body>
