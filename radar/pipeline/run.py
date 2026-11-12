@@ -102,6 +102,10 @@ class Pipeline:
             self._snapshot(db, run, listing, today)
             seen_ids.add(listing.id)
 
+        detail_errors = [e for e in st["errors"] if e.startswith("detail ")]
+        if detail_errors:
+            self.notify(f"Casa Radar: {src.name}: {len(detail_errors)} detail page error(s): {detail_errors[:2]}")
+
         # Removal detection only after a complete crawl: a partial crawl proves nothing.
         if crawl.complete:
             self._mark_unseen(db, run, src.name, seen_ids, today, st)

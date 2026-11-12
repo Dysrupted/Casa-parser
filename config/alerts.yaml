@@ -1,0 +1,15 @@
+# Telegram alerts (PRD F7). Secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID in .env.
+enabled: true
+mode: realtime            # realtime = one message per alert at the end of each run | digest = one summary
+score_threshold: 75       # new in-profile listing at/above this -> alert
+price_drop_pct: 0.05      # drop >= 5 % on a watched or high-score listing -> alert
+triggers:
+  new_high_score: true
+  price_drop: true
+  watch_removed: true     # watched listing disappeared (possibly sold)
+  run_errors: true        # source/stage failures (fail-soft pings)
+quiet_hours:              # Africa/Casablanca; alerts are queued and sent by the first run after
+  start: "22:00"
+  end: "08:00"
+max_alerts_per_run: 20    # beyond this, the rest go into a single digest message
+max_send_attempts: 3

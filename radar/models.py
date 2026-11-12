@@ -164,3 +164,34 @@ class Score(SQLModel, table=True):
     total: float
     in_profile: bool
     breakdown: dict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class NoteStatus(StrEnum):
+    watching = "watching"
+    visited = "visited"
+    called = "called"
+    rejected = "rejected"
+
+
+class UserNote(SQLModel, table=True):
+    """Watchlist + personal notes (PRD F8). `reject_reason` feeds v2 weight tuning."""
+    property_id: int = Field(foreign_key="property.id", primary_key=True)
+    status: NoteStatus = NoteStatus.watching
+    note: str | None = None
+    reject_reason: str | None = None
+    actual_sale_price_mad: int | None = None   # PRD §9: "actual sale price heard"
+    updated_at: datetime
+
+
+class AlertLog(SQLModel, table=True):
+    """Every alert, queued or sent. `key` makes alerting idempotent across reruns."""
+    id: int | None = Field(default=None, primary_key=True)
+    key: str = Field(unique=True)
+    property_id: int | None = Field(default=None, foreign_key="property.id", index=True)
+    type: str                 # new_high_score | price_drop | watch_removed | run_errors | test
+    status: str = "pending"   # pending | sent | failed
+    attempts: int = 0
+    payload: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime
+    sent_at: datetime | None = None
+    error: str | None = None
