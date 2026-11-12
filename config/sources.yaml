@@ -1,0 +1,47 @@
+http:
+  # Polite identification. RADAR_CONTACT from .env is appended if set.
+  user_agent: "CasaRadar/0.1 (personal low-volume research bot)"
+  min_delay_s: 3.0          # hard floor enforced in code: must be >= 3
+  max_delay_s: 7.0
+  timeout_s: 30
+  max_retries: 2
+  retry_backoff_s: 10
+  cache_ttl_hours:
+    search: 6               # same-day reruns hit the cache -> idempotent & polite
+    detail: 168
+    robots: 24
+
+pipeline:
+  missing_runs_before_removed: 2   # complete crawls without the listing before status=removed
+  refresh_detail_days: 7           # re-fetch detail page (raw snapshot) at most this often
+  timezone: Africa/Casablanca      # calendar day used for snapshot/event uniqueness
+
+sources:
+  mubawab:
+    enabled: true
+    base_url: https://www.mubawab.ma
+    # One URL per target zone keeps crawls small and complete (needed for removal detection).
+    # VERIFY these against the live site; run `radar record-fixture <url>` to capture fixtures.
+    search_urls:
+      - https://www.mubawab.ma/fr/sd/casablanca-ain-diab/appartements-a-vendre
+      - https://www.mubawab.ma/fr/sd/casablanca-anfa/appartements-a-vendre
+      - https://www.mubawab.ma/fr/sd/casablanca-racine/appartements-a-vendre
+      - https://www.mubawab.ma/fr/sd/casablanca-gauthier/appartements-a-vendre
+    pagination: "{url}:p:{page}"    # page 1 = bare url
+    max_pages: 20
+    fetch_details: true
+    # Selector chains: first match wins. Tune here when the site changes, not in code.
+    selectors:
+      card: ["div.listingBox", "li.listingBox"]
+      card_url: ["h2.listingTit a", "a[href*='/a/']"]
+      card_url_attr: ["linkref"]
+      title: ["h2.listingTit", "h2"]
+      price: ["span.priceTag", ".priceTag"]
+      location: ["h3.listingH3", "span.listingH3", ".listingH3"]
+      features: ["div.adDetails span", ".adDetailFeature span"]
+      card_photo: ["img.sliderImage", "img"]
+      agency: ["div.businessLogo img", ".agencyName"]
+      detail_description: ["div.blockProp p", "p.descLi", "div.description"]
+      detail_photos: ["div.slider img", "div#masonryPhoto img", "img.imgSlider"]
+      detail_features: ["div.adMainFeature span", "div.adFeature span", "div.mainInfoProp span"]
+      detail_agency: ["div.businessName", "p.link a", ".agencyName"]

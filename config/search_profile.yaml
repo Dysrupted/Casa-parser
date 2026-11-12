@@ -1,0 +1,12 @@
+city: casablanca
+surface_m2: {min: 80, max: 100}
+zones:            # weights reflect preference, editable
+  ain_diab: 1.0
+  anfa: 0.9
+  corniche: 1.0
+  racine: 0.7
+  gauthier: 0.6
+property_type: apartment
+max_price_mad: null          # filled later from Finance Cockpit
+must_have: []                # e.g. [elevator]
+nice_to_have: [sea_view, parking, terrace, recent_building, concierge]
