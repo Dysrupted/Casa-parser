@@ -220,15 +220,28 @@ def test_pipeline_simulates_priced_listings(settings, engine, clock):
     fetcher = FakeFetcher(default_pages())
     enr = [Enricher(settings, fetcher, None), Analyzer(settings)]
     src = MubawabSource(settings.sources["mubawab"], fetcher)
-    # shipped config: rates missing -> skipped, never guessed
+    # a rate missing -> skipped, never guessed
+    shipped = settings.financing
+    settings.financing = FinancingParams(**(SYNTH | {"financing": SYNTH["financing"] | {"annual_rate": None}}))
     run = Pipeline(settings, engine, [src], now=clock, stages=enr).run()
     assert run.stats["analyze"]["simulation"]["status"] == "skipped"
+
+    # shipped market defaults: every priced listing gets cash, payment and income needed
+    settings.financing = shipped
+    run = Pipeline(settings, engine, [src], now=clock, stages=enr).run()
+    st = run.stats["analyze"]["simulation"]
+    assert st["simulated"] == 3 and st["scenario"] == shipped.default_scenario
+    with Session(engine) as db:
+        out = next(s for s in db.exec(select(Simulation)) if s.price_mad == 2_650_000).outputs
+    assert out["scenario"] == shipped.default_scenario and out["total_cash_needed_mad"] > 0
+    assert out["monthly_payment_mad"] > 0 and out["required_income_mad"] > out["monthly_payment_mad"]
 
     settings.financing = FinancingParams(**SYNTH)
     run = Pipeline(settings, engine, [src], now=clock, stages=enr).run()
     assert run.stats["analyze"]["simulation"]["simulated"] == 3      # 'Prix à consulter' excluded
     with Session(engine) as db:
-        sims = {s.price_mad: s for s in db.exec(select(Simulation))}
+        h = settings.financing.hash()
+        sims = {s.price_mad: s for s in db.exec(select(Simulation)) if s.params_hash == h}
     a = sims[2_650_000].outputs
     assert a["ok"] and "agency_fee" in a["cost_breakdown_mad"]       # agency listing
     assert "agency_fee" not in sims[1_980_000].outputs["cost_breakdown_mad"]

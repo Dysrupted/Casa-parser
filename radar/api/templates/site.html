@@ -90,6 +90,48 @@ details.stats summary{cursor:pointer;color:var(--primary);font-weight:500;paddin
 .why{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--muted)}
 .why li::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);margin-right:8px;vertical-align:2px}
 
+.m-fin{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding-top:8px;border-top:1px solid var(--line)}
+.m-fin div{min-width:0}
+.m-fin dt{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.m-fin dd{margin:0;font-size:14px;font-weight:600;white-space:nowrap}
+.m-fin dd small{font-weight:400;color:var(--muted)}
+
+/* what it takes to buy */
+.scen{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:12px}
+.sc{padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.sc.on{border-color:var(--primary)}
+.sc h3{font-size:15px;font-weight:600;margin:0}
+.sc .tag{font-size:11px;font-weight:500;color:var(--primary);text-transform:uppercase;letter-spacing:.04em}
+.kv{margin:0;display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:600;text-align:right;white-space:nowrap}
+.kv dd small{font-weight:400;color:var(--muted)}
+.buygrid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;align-items:start}
+@media (max-width:900px){.buygrid{grid-template-columns:minmax(0,1fr)}}
+.calc,.fees{padding:16px;min-width:0}
+.calc h3,.fees h3{font-size:15px;font-weight:600;margin:0 0 12px}
+.form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 12px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:var(--muted);min-width:0}
+.form .w2{grid-column:span 2}.form .w4{grid-column:1/-1}
+@media (max-width:560px){.form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.form input[type=number],.form select{font:400 16px var(--font);font-variant-numeric:tabular-nums;color:var(--fg);background:var(--bg);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;min-height:42px;width:100%;min-width:0}
+.form .check{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--fg);min-height:42px}
+.form .check input{width:18px;height:18px;accent-color:var(--primary)}
+.out{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+@media (max-width:560px){.out{grid-template-columns:minmax(0,1fr)}}
+.out div{min-width:0}
+.out .lbl{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.out .val{font-size:22px;font-weight:600;line-height:1.2;white-space:nowrap}
+.out .val small{font-size:13px;font-weight:500;color:var(--muted)}
+.out .note{font-size:13px;color:var(--muted)}
+.verdict{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
+.verdict .chip{white-space:normal}
+.fees .mini td:first-child{white-space:normal}
+.fees .mini tr.tot td{font-weight:600;border-bottom:0}
+.fees p{font-size:13px;color:var(--muted);margin:10px 0 0}
+details.src{margin-top:12px}
+details.src li{overflow-wrap:anywhere}
+
 /* filters */
 .filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:12px}
 .seg{display:inline-flex;flex-wrap:wrap;gap:4px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
@@ -113,7 +155,7 @@ table.list{border-collapse:collapse;width:100%;font-size:14px}
 .list tr:last-child td{border-bottom:0}
 .list tbody tr{transition:background .15s}
 .list tbody tr:hover{background:var(--bg)}
-.list td.t{white-space:normal;min-width:16em;max-width:28em}
+.list td.t{white-space:normal;min-width:12em;max-width:22em}
 .list td.t a{color:var(--fg);text-decoration:none;font-weight:500}
 .list td.t a:hover{text-decoration:underline}
 .num{text-align:right}
@@ -180,9 +222,48 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
     <div class="matches" id="matches"></div>
   </section>
 
+  <section aria-labelledby="h-buy" id="buy" hidden>
+    <h2 id="h-buy">What it takes to buy</h2>
+    <p class="sub" id="buy-sub"></p>
+    <div class="scen" id="scen"></div>
+    <div class="buygrid">
+      <div class="card calc">
+        <h3>Try your own numbers</h3>
+        <form class="form" id="calc" onsubmit="return false">
+          <label class="w4">Listing<select id="c-listing"></select></label>
+          <label class="w2">Price (MAD)<input id="c-price" type="number" inputmode="numeric" min="0" step="10000"></label>
+          <label class="w2">Financing<select id="c-scen"></select></label>
+          <label>Down payment %<input id="c-down" type="number" inputmode="decimal" min="0" max="100" step="1"></label>
+          <label>Rate % before tax<input id="c-rate" type="number" inputmode="decimal" min="0" max="20" step="0.05"></label>
+          <label>Years<input id="c-years" type="number" inputmode="numeric" min="1" max="30" step="1"></label>
+          <label>Your income €/month<input id="c-income" type="number" inputmode="numeric" min="0" step="100" placeholder="optional"></label>
+          <label class="check w4"><input id="c-agency" type="checkbox">Sold through an agency (adds the agency commission)</label>
+        </form>
+        <div class="out" aria-live="polite">
+          <div><div class="lbl">Cash needed</div><div class="val" id="o-cash"></div><div class="note" id="o-cash-n"></div></div>
+          <div><div class="lbl">Monthly payment</div><div class="val" id="o-pay"></div><div class="note" id="o-pay-n"></div></div>
+          <div><div class="lbl">Income needed</div><div class="val" id="o-inc"></div><div class="note" id="o-inc-n"></div></div>
+        </div>
+        <div class="verdict" id="o-verdict" aria-live="polite"></div>
+      </div>
+      <div class="card fees">
+        <h3>Fees on top of the price</h3>
+        <table class="mini" aria-label="Acquisition costs for the price entered">
+          <thead><tr><th>Cost</th><th>Rate</th><th>MAD</th></tr></thead>
+          <tbody id="fees"></tbody>
+        </table>
+        <p id="fees-note"></p>
+      </div>
+    </div>
+    <details class="how src">
+      <summary>Where these assumptions come from</summary>
+      <ul id="src"></ul>
+    </details>
+  </section>
+
   <section aria-labelledby="h-all">
     <h2 id="h-all">All listings</h2>
-    <p class="sub">“vs zone” compares a listing’s price per m² with its zone’s median: under 1.00× is cheaper than usual.</p>
+    <p class="sub">“vs zone” compares a listing’s price per m² with its zone’s median: under 1.00× is cheaper than usual.<span id="all-fin-note"></span></p>
     <div class="filters">
       <div class="seg" role="group" aria-label="Zone" id="f-zone"></div>
       <div class="seg" role="group" aria-label="Size" id="f-size">
@@ -194,7 +275,7 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
         <select id="f-sort" aria-label="Sort listings">
           <option value="score:desc">Best score</option><option value="price_vs_zone:asc">Cheapest vs zone</option>
           <option value="price_mad:asc">Lowest price</option><option value="price_m2:asc">Lowest price per m²</option>
-          <option value="surface_m2:desc">Largest</option><option value="first_seen:desc">Newest</option>
+          <option value="cash_mad:asc">Least cash needed</option><option value="surface_m2:desc">Largest</option><option value="first_seen:desc">Newest</option>
         </select>
       </label>
       <span class="count" id="count" aria-live="polite"></span>
@@ -209,6 +290,9 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
           <th class="num" data-k="surface_m2"><button type="button">m²</button></th>
           <th class="num" data-k="price_m2"><button type="button">MAD / m²</button></th>
           <th class="num" data-k="price_vs_zone"><button type="button">vs zone</button></th>
+          <th class="num fincol" data-k="cash_mad"><button type="button">Cash needed</button></th>
+          <th class="num fincol" data-k="monthly_mad"><button type="button">Monthly</button></th>
+          <th class="num fincol" data-k="income_eur"><button type="button">Income €</button></th>
           <th data-k="sources"><button type="button">Source</button></th>
         </tr></thead>
         <tbody id="rows"></tbody>
@@ -230,6 +314,7 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
 
 <script id="data" type="application/json">{{ data_json | safe }}</script>
 <script>
+{% include "finance_calc.js" %}
 (() => {
   const D = JSON.parse(document.getElementById('data').textContent);
   const L = D.listings;
@@ -238,6 +323,8 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
   const h = (tag, props = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k === 'class') e.className = v; else if (k in e) e[k] = v; else e.setAttribute(k, v); } e.append(...kids.filter((k) => k != null && k !== '')); return e; };
   const fmt = (v) => v == null ? '—' : Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const short = (v) => v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 1 : 2).replace(/\.?0+$/, '') + ' M' : fmt(v);
+  const F = D.fin && D.fin.ok ? D.fin : null;   // financing assumptions; null = config incomplete
+  const pct = (x, d = 2) => { const t = (x * 100).toFixed(d); return (t.includes('.') ? t.replace(/\.?0+$/, '') : t) + '%'; };
   const vsClass = (p) => !p ? '' : p < 0.97 ? 'good' : p > 1.03 ? 'bad' : '';
   const vsText = (p) => p ? p.toFixed(2) + '×' : '—';
   const quant = (xs, q) => { const s = [...xs].sort((a, b) => a - b), i = (s.length - 1) * q, lo = Math.floor(i); return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo); };
@@ -330,8 +417,81 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
         h('span', { class: 'chip' }, r.zone_label), h('span', { class: 'chip' }, `${r.surface_m2} m²`),
         h('span', { class: 'chip' }, `${fmt(r.price_m2)} MAD/m²`),
         r.price_vs_zone ? h('span', { class: 'chip ' + vsClass(r.price_vs_zone) }, `${vsText(r.price_vs_zone)} zone median`) : null),
-      r.reasons.length ? h('ul', { class: 'why' }, ...r.reasons.map((x) => h('li', {}, x))) : null));
+      r.reasons.length ? h('ul', { class: 'why' }, ...r.reasons.map((x) => h('li', {}, x))) : null,
+      F && r.cash_mad != null ? h('dl', { class: 'm-fin' },
+        h('div', {}, h('dt', {}, 'Cash needed'), h('dd', {}, short(r.cash_mad), h('small', {}, ' MAD'))),
+        h('div', {}, h('dt', {}, 'Monthly'), h('dd', {}, fmt(r.monthly_mad), h('small', {}, ' MAD'))),
+        h('div', {}, h('dt', {}, 'Income needed'), h('dd', {}, r.income_eur != null ? fmt(r.income_eur) : fmt(r.income_mad), h('small', {}, r.income_eur != null ? ' €/mo' : ' MAD/mo')))) : null));
   }
+
+  // ---- what it takes to buy: scenarios at a reference price, calculator, fee breakdown, sources
+  if (F) {
+    $('buy').hidden = false;
+    const def = F.scenarios.find((x) => x.is_default) || F.scenarios[0];
+    const eur = (mad) => F.eur_mad ? ` · ≈ ${fmt(mad / F.eur_mad)} €` : '';
+    $('buy-sub').textContent = `Beyond the price you need cash for the down payment and about ${pct(def.acquisition_costs_mad / F.ref_price_mad, 1)} of fees, and an income that carries the loan: banks keep repayments under ${pct(F.calc.max_debt_ratio, 0)} of net income. The cards below price a typical 80–100 m² listing (${fmt(F.ref_price_mad)} MAD, the median) under ${F.scenarios.length} financing assumptions. These are market defaults researched in November 2026, not a bank offer.`;
+    $('all-fin-note').textContent = ` Cash needed, monthly payment and income needed assume “${def.label}” financing (see above).`;
+    $('scen').replaceChildren(...F.scenarios.map((x) => h('article', { class: 'card sc' + (x.is_default ? ' on' : '') },
+      h('div', {}, x.is_default ? h('div', { class: 'tag' }, 'Used in the lists') : null, h('h3', {}, x.label)),
+      h('div', { class: 'chips' },
+        h('span', { class: 'chip' }, `${pct(x.annual_rate)} rate`), h('span', { class: 'chip' }, `${x.duration_years} years`),
+        h('span', { class: 'chip' }, `${pct(x.down_payment_pct, 0)} down`), h('span', { class: 'chip' }, `insurance ${pct(x.insurance_annual_rate)}`)),
+      h('dl', { class: 'kv' },
+        h('dt', {}, 'Cash needed'), h('dd', {}, fmt(x.total_cash_needed_mad), h('small', {}, ' MAD')),
+        h('dt', {}, 'Monthly payment'), h('dd', {}, fmt(x.monthly_payment_mad), h('small', {}, ' MAD')),
+        h('dt', {}, 'Income needed'), h('dd', {}, x.required_income_eur != null ? fmt(x.required_income_eur) : fmt(x.required_income_mad), h('small', {}, x.required_income_eur != null ? ' €/mo' : ' MAD/mo'))))));
+
+    const picks = prof.filter((r) => r.price_mad).slice(0, 30);
+    const lsel = $('c-listing'), ssel = $('c-scen');
+    lsel.append(h('option', { value: '' }, `Typical 80–100 m² listing (${fmt(F.ref_price_mad)} MAD)`),
+      ...picks.map((r, i) => h('option', { value: String(i) }, `${r.zone_label} · ${r.surface_m2} m² · ${short(r.price_mad)} MAD`)));
+    ssel.append(...F.scenarios.map((x, i) => h('option', { value: String(i) }, x.label)));
+    ssel.value = String(F.scenarios.indexOf(def));
+    let sc = def;
+    const setScen = () => { sc = F.scenarios[+ssel.value]; $('c-down').value = +(sc.down_payment_pct * 100).toFixed(2); $('c-rate').value = +(sc.annual_rate * 100).toFixed(3); $('c-years').value = sc.duration_years; };
+    const setListing = () => { const r = picks[lsel.value]; $('c-price').value = Math.round(r ? r.price_mad : F.ref_price_mad); $('c-agency').checked = !!(r && r.agency); };
+    const num = (id) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : null; };
+    function calc() {
+      const price = num('c-price'), down = num('c-down'), rate = num('c-rate'), years = num('c-years'), income = num('c-income');
+      const verdict = $('o-verdict'); verdict.replaceChildren();
+      if (!(price > 0) || down == null || down < 0 || down > 100 || rate == null || rate < 0 || !(years >= 1)) {
+        for (const id of ['o-cash', 'o-pay', 'o-inc']) $(id).textContent = '—';
+        for (const id of ['o-cash-n', 'o-pay-n', 'o-inc-n']) $(id).textContent = '';
+        verdict.append(h('span', { class: 'chip bad' }, 'Enter a price, a down payment between 0 and 100%, a rate and a duration.'));
+        return;
+      }
+      const agency = $('c-agency').checked;
+      const r = financeCalc(F.calc, { price, down_pct: down / 100, rate: rate / 100, interest_vat: sc.interest_vat_rate, years: Math.round(years),
+        insurance_rate: sc.insurance_annual_rate, bank_fees: sc.bank_fees_mad, finance_costs: sc.finance_acquisition_costs, agency, eur_mad: F.eur_mad });
+      $('o-cash').replaceChildren(fmt(r.total_cash_needed_mad), h('small', {}, ' MAD'));
+      $('o-cash-n').textContent = `${fmt(r.down_payment_mad)} down + ${fmt(r.total_cash_needed_mad - r.down_payment_mad)} fees${eur(r.total_cash_needed_mad)}`;
+      $('o-pay').replaceChildren(fmt(r.monthly_payment_mad), h('small', {}, ' MAD'));
+      $('o-pay-n').textContent = r.loan_amount_mad > 0 ? `loan ${fmt(r.loan_amount_mad)} MAD · incl. ${fmt(r.monthly_insurance_mad)} insurance${eur(r.monthly_payment_mad)}` : 'no loan';
+      $('o-inc').replaceChildren(r.required_income_eur != null ? fmt(r.required_income_eur) : fmt(r.required_income_mad), h('small', {}, r.required_income_eur != null ? ' €/month' : ' MAD/month'));
+      $('o-inc-n').textContent = `${fmt(r.required_income_mad)} MAD net, so the payment stays at ${pct(F.calc.max_debt_ratio, 0)}`;
+      if (down / 100 < sc.min_down_payment_pct) verdict.append(h('span', { class: 'chip bad' }, `Below the ${pct(sc.min_down_payment_pct, 0)} minimum down payment for this profile`));
+      if (income > 0 && F.eur_mad) {
+        const share = r.monthly_payment_mad / (income * F.eur_mad), ok = share <= F.calc.max_debt_ratio;
+        verdict.append(h('span', { class: 'chip ' + (ok ? 'good' : 'bad') }, `The payment is ${pct(share, 0)} of your income: ${ok ? 'within' : 'over'} the ${pct(F.calc.max_debt_ratio, 0)} limit`));
+      }
+      const rateText = (l) => l.tiers ? l.tiers.map((t) => pct(t.rate)).filter((v, i, a) => a.indexOf(v) === i).join(' / ') + ' of loan' : (l.rate ? pct(l.rate) + (l.base === 'loan' ? ' of loan' : '') : '') + (l.rate && l.fixed ? ' + ' : '') + (l.fixed ? fmt(l.fixed) : '') + (l.vat ? ` + ${pct(l.vat, 0)} VAT` : '');
+      const rows = F.calc.lines.filter((l) => l.key in r.costs).map((l) => h('tr', {}, h('td', {}, l.label), h('td', {}, rateText(l)), h('td', {}, fmt(r.costs[l.key]))));
+      if (r.loan_amount_mad > 0) rows.push(h('tr', {}, h('td', {}, 'Bank file and valuation'), h('td', {}, 'fixed'), h('td', {}, fmt(sc.bank_fees_mad))));
+      const tot = r.acquisition_costs_mad + (r.loan_amount_mad > 0 ? sc.bank_fees_mad : 0);
+      rows.push(h('tr', { class: 'tot' }, h('td', {}, 'Total'), h('td', {}, pct(tot / price, 1) + ' of price'), h('td', {}, fmt(tot))));
+      $('fees').replaceChildren(...rows);
+    }
+    const o = F.ownership || {};
+    $('fees-note').textContent = `For a resale flat. A new build from a developer pays the same duties on a price that already includes VAT.` +
+      (o.syndic_monthly_mad ? ` After the purchase, count ${fmt(o.syndic_monthly_mad[0])}–${fmt(o.syndic_monthly_mad[1])} MAD a month of building charges, plus the housing and communal-services taxes.` : '');
+    $('src').replaceChildren(
+      h('li', {}, `The monthly payment adds ${pct(sc.interest_vat_rate, 0)} VAT on interest to the quoted rate and includes death-and-disability insurance. Rates, insurance and fees vary by bank, age and file: ask for a written offer.`),
+      ...F.sources.map((x) => h('li', {}, `${x.what} · `, h('a', { href: x.url, target: '_blank', rel: 'noopener' }, new URL(x.url).hostname.replace(/^www\./, '')), ` · ${x.date} · ${x.confidence} confidence`)));
+    lsel.addEventListener('change', () => { setListing(); calc(); });
+    ssel.addEventListener('change', () => { setScen(); calc(); });
+    $('calc').addEventListener('input', calc);
+    setScen(); setListing(); calc();
+  } else for (const e of document.querySelectorAll('.fincol')) e.hidden = true;
 
   // ---- full list: filters, sort, table + phone cards
   const state = { zone: '', size: '', key: 'score', dir: 'desc' };
@@ -365,6 +525,7 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
       h('td', { class: 't' }, h('a', { href: r.url, target: '_blank', rel: 'noopener' }, r.title || 'Listing')),
       h('td', { class: 'num' }, fmt(r.price_mad)), h('td', { class: 'num' }, r.surface_m2 ?? '—'), h('td', { class: 'num' }, fmt(r.price_m2)),
       h('td', { class: 'num vs ' + vsClass(r.price_vs_zone) }, vsText(r.price_vs_zone)),
+      ...(F ? [h('td', { class: 'num' }, fmt(r.cash_mad)), h('td', { class: 'num' }, fmt(r.monthly_mad)), h('td', { class: 'num' }, fmt(r.income_eur))] : []),
       h('td', { class: 'dim' }, r.sources.join(' + ')))));
     $('rows-cards').replaceChildren(...rows.slice(0, 80).map((r) => h('article', { class: 'card rc' },
       h('a', { href: r.url, target: '_blank', rel: 'noopener' }, r.title || 'Listing'),
@@ -373,7 +534,10 @@ footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);paddin
         h('span', {}, r.zone_label), h('span', {}, r.surface_m2 ? `${r.surface_m2} m²` : 'size n/a'),
         r.price_m2 ? h('span', {}, `${fmt(r.price_m2)}/m²`) : null,
         r.price_vs_zone ? h('span', { class: 'vs ' + vsClass(r.price_vs_zone) }, `${vsText(r.price_vs_zone)} zone`) : null,
-        r.score != null ? h('span', {}, `score ${Math.round(r.score)}`) : null))));
+        r.score != null ? h('span', {}, `score ${Math.round(r.score)}`) : null,
+        F && r.cash_mad != null ? h('span', {}, `cash ${short(r.cash_mad)}`) : null,
+        F && r.monthly_mad != null ? h('span', {}, `${fmt(r.monthly_mad)}/mo`) : null,
+        F && r.income_eur != null ? h('span', {}, `income ${fmt(r.income_eur)} €`) : null))));
     if (rows.length > 80) $('rows-cards').append(h('p', { class: 'sub' }, `Showing 80 of ${rows.length}. Filter by zone or size to narrow the list.`));
   }
   render();

@@ -49,7 +49,10 @@ radar run -s mubawab      # one source
 radar status              # counts per zone/status, last run, events, core-field coverage
 radar enrich              # re-run FX + feature extraction + geo without crawling
 radar spotcheck -n 20     # data/spotcheck.md: description vs extracted values + spans (M2 review)
-radar simulate 2500000 --agency   # all-in cost, cash needed, monthly payment (config/financing.yaml)
+radar simulate 2500000 --agency   # all-in cost, cash needed, monthly payment, income needed + all scenarios side by side
+radar simulate 2500000 --scenario mre_best    # detail for one financing scenario (config/financing.yaml)
+radar afford --income-eur 4000 --savings-mad 700000   # highest affordable price per scenario, and what limits it
+radar site --out site     # static public page, incl. "What it takes to buy" and a calculator
 radar index               # asking-price/m² per zone: median, p25, p75, n, 30/90-day trend
 radar top -n 10           # best in-profile listings with "why this score"
 radar watch <id|url>      # watchlist (price drops + removal alerts)
@@ -76,7 +79,7 @@ Exit code is non-zero only if every source failed.
 ```
 config/          search_profile.yaml · zones.yaml (alias table) · sources.yaml (http, pipeline, selectors)
                  enrich.yaml (LLM, geo centroids + Corniche polyline, FX)
-                 financing.yaml (workbook rates) · scoring.yaml (weights, anchors, penalties)
+                 financing.yaml (sourced market defaults, scenarios, affordability) · scoring.yaml (weights, anchors, penalties)
                  alerts.yaml (threshold, triggers, quiet hours, digest) · dedupe.yaml
 radar/
   config.py      typed YAML loading (pydantic), zone resolver
@@ -94,12 +97,20 @@ radar/
   dedupe/        similarity (bigram Jaccard, pHash) · merge · stage
   pipeline/analyze.py  index → simulation → scores
   alerts/        engine.py (selection, idempotent queue, quiet hours) · telegram.py (client, formatting)
-  simulation/    params.py (config model) · engine.py (pure, Decimal) · store.py (per-listing)
+  simulation/    params.py (config model, scenarios) · engine.py (pure, Decimal) · affordability.py
+                 (income needed, max price) · store.py (per-listing)
   migrations/    Alembic
   cli.py
 tests/           fixture-based; never hits live sites
 data/            radar.db, cache/, raw/ (gitignored)
 ```
+
+## Financing assumptions
+
+`config/financing.yaml` holds market defaults researched in November 2026 (fees, rates, MRE loan
+ceiling, debt ratio), each with a source, date and confidence. They are not a bank quote: replace
+them with your bank's offer and notary's fee note. Background, sources and open questions:
+`docs/research/morocco-purchase-financing.md`.
 
 ## Adding a source
 
