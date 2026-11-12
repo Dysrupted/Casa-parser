@@ -279,3 +279,15 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
     public URL, so each refresh exports CSVs (listings, zones, run status) and uploads them as
     the dashboard's data files. Once the VPS runs `radar serve` behind HTTPS, the built-in dashboard
     (M7) covers the same need live.
+
+## Public web page (2026-11-12)
+
+67. **Public site = GitHub Pages, built by a daily GitHub Action** (`.github/workflows/site.yml`,
+    18:20 UTC, after Mubawab's quota resets). `radar site` renders one self-contained HTML file
+    (data embedded, no external requests). The DB and HTTP cache persist between runs via
+    `actions/cache`, so price history and first-seen dates carry over.
+    Requires a public repo (free plan) and Pages source set to "GitHub Actions".
+
+68. **The public page shows less than the private tools.** It shows title, price, surface, zone, score,
+    reasons and a link to the original ad. It carries no copied descriptions and no photos, which
+    keeps it closer to "pointing to" the sites than republishing them.

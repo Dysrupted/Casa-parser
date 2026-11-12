@@ -116,3 +116,22 @@ def test_auth_password_token_and_share(populated, monkeypatch):
     assert c.post(f"/p/{pid}/note", data={"status": "watching"}).status_code == 403    # share can't write
     assert c.get("/api/goal?share=fam").status_code == 401                             # share can't use API
     assert c.get("/healthz").status_code == 200
+
+
+def test_static_site_build(populated, tmp_path, monkeypatch):
+    import json
+    import re
+
+    from typer.testing import CliRunner
+
+    from radar.cli import app
+    s, _ = populated
+    monkeypatch.setenv("RADAR_CONFIG_DIR", str(s.config_dir))
+    monkeypatch.setenv("RADAR_DATA_DIR", str(s.data_dir))
+    res = CliRunner().invoke(app, ["site", "--out", str(tmp_path / "site")])
+    assert res.exit_code == 0, res.output
+    html = (tmp_path / "site" / "index.html").read_text()
+    data = json.loads(re.search(r'<script id="data" type="application/json">(.*?)</script>', html, re.S).group(1))
+    assert data["listings"] and {"url", "price_mad", "score", "in_profile", "reasons"} <= set(data["listings"][0])
+    assert "description" not in data["listings"][0]          # public page: no copied ad text or photos
+    assert (tmp_path / "site" / ".nojekyll").exists()

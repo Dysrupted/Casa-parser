@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casa Radar</title>
+<meta name="description" content="Daily asking prices for apartments for sale in Aïn Diab, Anfa, Racine and Gauthier, Casablanca.">
+<style>
+:root{--bg:#f6f5f1;--panel:#fffffe;--fg:#1c1d1b;--muted:#64665f;--line:#e2e0d8;--accent:#0f6b63;--accent-soft:#d6e7e3;--good:#1f7a3a;--bad:#a8331f;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#131513;--panel:#1b1e1c;--fg:#e9e9e4;--muted:#9da098;--line:#2c302d;--accent:#5fbcb0;--accent-soft:#21403b;--good:#7cd294;--bad:#f0907c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans)}
+.wrap{max-width:980px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:32px}
+h1{font:400 34px/1.15 var(--serif);margin:0;letter-spacing:-.01em}
+h2{font:600 18px/1.3 var(--sans);margin:0 0 4px}
+.muted{color:var(--muted);font-size:13px}
+.lede{font-size:17px;max-width:62ch;margin:10px 0 6px;text-wrap:pretty}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.big{font:400 32px/1.1 var(--serif);font-variant-numeric:tabular-nums}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font:12px var(--sans)}
+.chart .lbl{fill:var(--fg);font-size:13px}
+.chart .val{fill:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+.matches{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.match{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;min-width:0}
+.match a{color:inherit;font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.match a:hover,.match a:focus-visible{text-decoration:underline;outline:none}
+.score{font:400 26px/1 var(--serif);font-variant-numeric:tabular-nums;color:var(--accent)}
+.facts{grid-column:1/-1;font-variant-numeric:tabular-nums}
+.why{grid-column:1/-1;margin:4px 0 0;padding-left:1.1em;color:var(--muted);font-size:13px}
+.pill{display:inline-block;padding:0 8px;border-radius:99px;background:var(--accent-soft);font-size:12px;margin-right:4px}
+.good{color:var(--good)}.bad{color:var(--bad)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+select{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.t{white-space:normal;min-width:15em}
+td.t a{color:inherit}
+th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--panel)}
+.num{text-align:right}
+tr:last-child td{border-bottom:0}
+details{color:var(--muted);font-size:13px}
+details li{max-width:72ch;margin-bottom:4px}
+@media (max-width:560px){.tile{padding:12px}.big{font-size:24px}.tile .muted{font-size:12px}}
+footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Casa Radar</h1>
+    <p class="lede" id="takeaway"></p>
+    <p class="muted">Apartments for sale in Aïn Diab, Anfa, Racine and Gauthier (Casablanca). Asking prices from Mubawab and Avito, updated <time id="updated" datetime="{{ meta.run_at_iso }}">{{ meta.run_at_label }}</time>.</p>
+  </header>
+
+  <section class="tiles" aria-label="Summary">
+    <div class="tile"><span class="muted">Listings tracked</span><span class="big" id="k-tracked"></span><span class="muted">active, all sizes</span></div>
+    <div class="tile"><span class="muted">80–100 m² matches</span><span class="big" id="k-profile"></span><span class="muted">in the target zones</span></div>
+    <div class="tile"><span class="muted">Cheapest zone per m²</span><span class="big" id="k-cheap"></span><span class="muted" id="k-cheap-sub"></span></div>
+  </section>
+
+  <section aria-labelledby="h-zones">
+    <h2 id="h-zones">Asking price per m² by zone</h2>
+    <p class="muted">Dot is the median. The bar spans the middle half of listings (25th to 75th percentile). Asking prices, not sale prices.</p>
+    <div id="zchart"></div>
+  </section>
+
+  <section aria-labelledby="h-best">
+    <h2 id="h-best">Best 80–100 m² matches</h2>
+    <p class="muted">Ranked by Casa Radar's score: price against the zone median, zone, distance to the Corniche, features, building and market signals.</p>
+    <div class="matches" id="matches"></div>
+  </section>
+
+  <section aria-labelledby="h-all">
+    <h2 id="h-all">All listings</h2>
+    <div class="controls">
+      <select id="zone" aria-label="Zone"><option value="">All zones</option></select>
+      <select id="size" aria-label="Size">
+        <option value="">All sizes</option><option value="profile">80–100 m²</option>
+      </select>
+      <select id="sort" aria-label="Sort">
+        <option value="score">Sort: score</option><option value="price_vs_zone">Sort: cheapest vs zone</option>
+        <option value="price_mad">Sort: price</option><option value="price_m2">Sort: price per m²</option>
+        <option value="surface_m2">Sort: surface</option><option value="first_seen">Sort: newest</option>
+      </select>
+    </div>
+    <p class="muted" id="count"></p>
+    <div class="tablewrap">
+      <table aria-label="Listings">
+        <thead><tr><th class="num">Score</th><th>Zone</th><th>Listing</th><th class="num">Price (MAD)</th><th class="num">≈ EUR</th><th class="num">m²</th><th class="num">MAD/m²</th><th class="num">vs zone</th><th>Source</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details>
+    <summary>How this works</summary>
+    <ul>
+      <li>Collected daily by Casa Radar, an open-source personal monitor. Each row links to the original ad; contact sellers there.</li>
+      <li>Mubawab allows only the first page of each neighbourhood search to be crawled, so it contributes the ~30 newest or promoted listings per neighbourhood each day. Avito is read across Casablanca, newest first, and filtered to these zones. Rentals posted as sales are removed.</li>
+      <li>"vs zone" is a listing's price per m² divided by its zone's median. Under 1.00 means cheaper than the typical asking price there.</li>
+      <li>The same flat advertised on both sites is shown once.</li>
+      <li>EUR uses the day's EUR/MAD rate ({{ meta.eur_mad_label }}).</li>
+    </ul>
+  </details>
+  <footer>Casa Radar · data as of {{ meta.run_at_label }} · prices are sellers' asking prices and may be outdated.</footer>
+</div>
+
+<script id="data" type="application/json">{{ data_json | safe }}</script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById('data').textContent);
+  const L = D.listings, Z = D.zones.filter((z) => z.median_m2 != null);
+  const fmt = (v) => v == null ? '—' : Math.round(v).toLocaleString('fr-FR').replace(/ | /g, ' ');
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, props); e.append(...kids); return e; };
+  const prof = L.filter((r) => r.in_profile).sort((a, b) => b.score - a.score);
+  const zs = [...Z].sort((a, b) => a.median_m2 - b.median_m2);
+
+  // takeaway + tiles
+  const t = prof[0];
+  const parts = [];
+  if (t) parts.push(`${prof.length} listing${prof.length > 1 ? 's' : ''} of 80–100 m² today; the top-ranked is in ${t.zone_label} at ${fmt(t.price_mad)} MAD for ${t.surface_m2} m²` +
+    (t.price_vs_zone ? `, ${Math.abs(Math.round((t.price_vs_zone - 1) * 100))}% ${t.price_vs_zone < 1 ? 'below' : 'above'} the zone median.` : '.'));
+  if (zs.length > 1) parts.push(`${zs[0].zone_label} is the cheapest zone per m² (median ${fmt(zs[0].median_m2)} MAD), ${zs.at(-1).zone_label} the most expensive (${fmt(zs.at(-1).median_m2)} MAD).`);
+  $('takeaway').textContent = parts.join(' ');
+  $('k-tracked').textContent = fmt(L.length);
+  $('k-profile').textContent = fmt(prof.length);
+  if (zs[0]) { $('k-cheap').textContent = zs[0].zone_label; $('k-cheap-sub').textContent = `median ${fmt(zs[0].median_m2)} MAD/m²`; }
+
+  // zone chart (inline SVG, redrawn on resize)
+  const NS = 'http://www.w3.org/2000/svg';
+  const svgEl = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+  function drawZones() {
+    const box = $('zchart'); box.replaceChildren();
+    const W = Math.max(300, box.clientWidth), rowH = 46, top = 6, bottom = 26, left = 84, right = 20, H = top + bottom + zs.length * rowH;
+    const lo = Math.min(...zs.map((z) => z.p25_m2 ?? z.median_m2)) * 0.95, hi = Math.max(...zs.map((z) => z.p75_m2 ?? z.median_m2)) * 1.03;
+    const x = (v) => left + (v - lo) / (hi - lo) * (W - left - right);
+    const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img', 'aria-label': 'Median asking price per square metre by zone with interquartile range' });
+    const step = 5000, n = Math.floor((W - left - right) / 70);
+    let ticks = []; for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
+    while (ticks.length > n && ticks.length > 2) ticks = ticks.filter((_, i) => i % 2 === 0);
+    for (const v of ticks) {
+      svg.append(svgEl('line', { x1: x(v), x2: x(v), y1: top, y2: H - bottom, stroke: 'var(--line)' }));
+      svg.append(svgEl('text', { x: x(v), y: H - 8, 'text-anchor': 'middle' }, `${v / 1000}k`));
+    }
+    zs.forEach((z, i) => {
+      const cy = top + i * rowH + rowH / 2 + 6;
+      svg.append(svgEl('text', { x: left - 10, y: cy + 4, 'text-anchor': 'end', class: 'lbl' }, z.zone_label));
+      const a = x(z.p25_m2 ?? z.median_m2), b = x(z.p75_m2 ?? z.median_m2);
+      svg.append(svgEl('rect', { x: a, y: cy - 6, width: Math.max(2, b - a), height: 12, rx: 6, fill: 'var(--accent-soft)' }));
+      svg.append(svgEl('circle', { cx: x(z.median_m2), cy, r: 6, fill: 'var(--accent)' }));
+      svg.append(svgEl('text', { x: x(z.median_m2), y: cy - 12, 'text-anchor': 'middle', class: 'val' }, fmt(z.median_m2)));
+      const tip = svgEl('title', {}, `${z.zone_label}: median ${fmt(z.median_m2)} MAD/m², middle half ${fmt(z.p25_m2)}–${fmt(z.p75_m2)}, ${z.listings_in_index} listings`);
+      svg.lastChild.append(tip);
+    });
+    box.append(svg);
+  }
+  drawZones();
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawZones, 120); });
+
+  // best matches
+  const vsSpan = (p) => { if (!p) return ''; const s = el('span', { textContent: `${p.toFixed(2)}× zone median` }); s.className = p < 0.97 ? 'good' : p > 1.03 ? 'bad' : ''; return s; };
+  const mbox = $('matches');
+  if (!prof.length) mbox.append(el('p', { className: 'muted', textContent: 'No 80–100 m² listing in this snapshot.' }));
+  for (const r of prof.slice(0, 9)) {
+    const why = el('ul', { className: 'why' }, ...r.reasons.map((x) => el('li', { textContent: x })));
+    mbox.append(el('article', { className: 'match' },
+      el('a', { href: r.url, target: '_blank', rel: 'noopener', textContent: r.title || 'Listing' }),
+      el('div', { className: 'score', textContent: Math.round(r.score), title: 'Score out of 100' }),
+      el('div', { className: 'facts' }, `${fmt(r.price_mad)} MAD · ${r.surface_m2} m² · `, el('span', { className: 'pill', textContent: r.zone_label }), vsSpan(r.price_vs_zone)),
+      why));
+  }
+
+  // table
+  for (const z of zs) $('zone').append(new Option(z.zone_label, z.zone));
+  function drawTable() {
+    const zone = $('zone').value, size = $('size').value, key = $('sort').value;
+    const desc = ['score', 'surface_m2', 'first_seen'].includes(key);
+    const rows = L.filter((r) => (!zone || r.zone === zone) && (!size || r.in_profile))
+      .sort((a, b) => { const x = a[key], y = b[key]; if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1); });
+    $('count').textContent = `${rows.length} listing${rows.length === 1 ? '' : 's'}`;
+    $('rows').replaceChildren(...rows.map((r) => {
+      const p = r.price_vs_zone;
+      const vs = el('td', { className: 'num' + (p ? (p < 0.97 ? ' good' : p > 1.03 ? ' bad' : '') : ''), textContent: p ? p.toFixed(2) + '×' : '—' });
+      return el('tr', {},
+        el('td', { className: 'num', textContent: r.score == null ? '—' : Math.round(r.score) }),
+        el('td', { textContent: r.zone_label }),
+        el('td', { className: 't' }, el('a', { href: r.url, target: '_blank', rel: 'noopener', textContent: r.title || 'Listing' })),
+        el('td', { className: 'num', textContent: fmt(r.price_mad) }), el('td', { className: 'num', textContent: fmt(r.price_eur) }),
+        el('td', { className: 'num', textContent: r.surface_m2 ?? '—' }), el('td', { className: 'num', textContent: fmt(r.price_m2) }),
+        vs, el('td', { textContent: r.sources.join(' + ') }));
+    }));
+  }
+  for (const id of ['zone', 'size', 'sort']) $(id).addEventListener('change', drawTable);
+  drawTable();
+})();
+</script>
+</body>
+</html>
