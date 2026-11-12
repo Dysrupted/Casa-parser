@@ -264,3 +264,18 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 
 62. **Recorded real pages** in `tests/fixtures/real/` (Mubawab search + detail, Avito search) back
     `tests/test_real_pages.py`. Refresh them with `radar record-fixture` when a site changes.
+
+63. **Unknown surface = not a profile match.** The first real run's "best match" was a studio
+    with no stated surface. The 80–100 m² requirement can't be verified, so it no longer counts as
+    in-profile (it's still scored and listed).
+
+64. **Sale filter.** Both sites mix rentals into "for sale" results ("à louer", 11 000 MAD/month).
+    `pipeline.sale_filter` skips titles/URLs matching rental words and prices under 250 000 MAD.
+
+65. **Avito detail pages are skipped** (`fetch_details: false`): search results already carry the
+    description, photos, price and surface, and the detail JSON is an empty placeholder server-side.
+
+66. **Phone dashboard = claude.ai artifact fed by `radar export`.** The container can't serve a
+    public URL, so each refresh exports CSVs (listings, zones, run status) and uploads them as
+    the dashboard's data files. Once the VPS runs `radar serve` behind HTTPS, the built-in dashboard
+    (M7) covers the same need live.

@@ -58,10 +58,16 @@ class HttpConfig(BaseModel):
         return self
 
 
+class SaleFilter(BaseModel):
+    min_price_mad: float = 0
+    exclude_title_regex: str | None = None
+
+
 class PipelineConfig(BaseModel):
     missing_runs_before_removed: int = Field(ge=1)
     refresh_detail_days: float = Field(gt=0)
     timezone: str = "Africa/Casablanca"  # defines the 'day' for snapshots/events
+    sale_filter: SaleFilter = SaleFilter()
 
 
 class SourceConfig(BaseModel):

@@ -115,6 +115,7 @@ def check_profile(inp: ScoreInput, profile) -> tuple[bool, list[str]]:
     notes, ok = [], True
     s = profile.surface_m2
     if inp.surface_m2 is None:
+        ok = False  # can't verify the 80-100 m² requirement: not a match until the surface is known
         notes.append("surface unknown")
     elif (s.min is not None and inp.surface_m2 < s.min) or (s.max is not None and inp.surface_m2 > s.max):
         ok = False

@@ -119,9 +119,10 @@ class AvitoSource(Source):
             return DetailData()
         photos = self._f(ad, "photos") or []
         lat, lon = self._f(ad, "lat"), self._f(ad, "lon")
+        photos = [p if isinstance(p, str) else first_of(p, [["url"], ["src"]]) for p in photos]
         return DetailData(
             description=clean(self._f(ad, "description")) or None,
-            photos=[p if isinstance(p, str) else first_of(p, [["url"], ["src"]]) for p in photos],
+            photos=[p for p in photos if isinstance(p, str)],
             agency=clean(self._f(ad, "agency")) or None,
             surface_m2=self._num(self._f(ad, "surface")),
             address_raw=clean(self._f(ad, "address")) or None,

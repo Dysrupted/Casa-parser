@@ -65,6 +65,8 @@ def test_profile_filters_and_must_have(settings):
     assert not r.in_profile and "must-have 'parking' missing" in r.profile_notes
     r = score(base(features={}), settings.scoring, p)
     assert r.in_profile and "must-have 'parking' unverified" in r.profile_notes
+    r = score(base(surface_m2=None), settings.scoring, p)
+    assert not r.in_profile and "surface unknown" in r.profile_notes
     p.max_price_mad = 1_500_000
     assert not score(base(), settings.scoring, p).in_profile
 

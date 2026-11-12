@@ -6,6 +6,7 @@ running once (snapshots/events are unique per listing+day; counters advance once
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -91,9 +92,16 @@ class Pipeline:
             self.notify(f"Casa Radar: {src.name} crawl incomplete: {crawl.errors[:3]}")
 
         seen_ids: set[int] = set()
+        sf = self.s.pipeline.sale_filter
+        rx = re.compile(sf.exclude_title_regex, re.I) if sf.exclude_title_regex else None
+        st["excluded_not_sale"] = 0
         for raw in crawl.listings:
             zone = self.s.zones.resolve(raw.location_raw) or self.s.zones.resolve(raw.title)
             if zone not in self.s.target_zones:
+                continue
+            if (raw.price_mad is not None and raw.price_mad < sf.min_price_mad) or (
+                    rx and rx.search(f"{raw.title or ''} {raw.url}".replace("-", " ").replace("_", " "))):
+                st["excluded_not_sale"] += 1  # rental mixed into sale results
                 continue
             st["in_zone"] += 1
             listing = self._upsert(db, run, raw, zone, now, st)

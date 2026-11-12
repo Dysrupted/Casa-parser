@@ -17,6 +17,10 @@ pipeline:
   missing_runs_before_removed: 2   # complete crawls without the listing before status=removed
   refresh_detail_days: 7           # re-fetch detail page (raw snapshot) at most this often
   timezone: Africa/Casablanca      # calendar day used for snapshot/event uniqueness
+  # Sites mix rentals into "for sale" results. Listings matching these are skipped at ingest.
+  sale_filter:
+    min_price_mad: 250000          # below this an "apartment for sale" is a rent or a typo
+    exclude_title_regex: "\\b(a|à) louer\\b|\\blocation\\b|\\blouer\\b|par mois|/mois\\b"
 
 sources:
   mubawab:
@@ -63,7 +67,9 @@ sources:
       - https://www.avito.ma/fr/casablanca/appartements-%C3%A0_vendre
     pagination: "{url}?o={page}"
     max_pages: 8
-    fetch_details: true
+    # Search results already carry description, photos, price and surface; the detail page's
+    # JSON (`adInfo`) is an empty placeholder server-side. Skip it: half the requests.
+    fetch_details: false
     id_pattern: "_(\\d+)\\.htm"
     embedded_json:
       script: "script#__NEXT_DATA__"

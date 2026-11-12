@@ -33,3 +33,10 @@ def test_sarouty_cards(settings):
     assert g.url == "https://www.sarouty.ma/fr/acheter/casablanca/appartement-standing-gauthier-6600001.html"
     assert (g.price_mad, g.surface_m2, g.rooms, g.location_raw) == (2_080_000, 95.0, 4, "Gauthier, Casablanca")
     assert cards["6600002"].bedrooms == 3
+
+
+def test_avito_detail_photos_without_url_are_dropped(settings):
+    html = ('<script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"ad":'
+            '{"description":"x","photos":[{"alt":"no url"},"https://content.avito.ma/p.jpg"]}}}}</script>')
+    d = AvitoSource(settings.sources["avito"], FakeFetcher({})).parse_detail_page(html)
+    assert d.photos == ["https://content.avito.ma/p.jpg"]

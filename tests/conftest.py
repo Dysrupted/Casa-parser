@@ -144,4 +144,5 @@ def multi_settings(settings):
     settings.sources["avito"].search_urls = [AVITO]
     settings.sources["sarouty"].search_urls = [SAROUTY]
     settings.sources["sarouty"].enabled = True   # synthetic fixture; disabled in prod config
+    settings.sources["avito"].fetch_details = True   # synthetic scenario has the text on the detail page
     return settings
