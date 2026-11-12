@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlmodel import Session, delete, select
 
 from radar.enrich.geo import PRECISION_RANK
-from radar.models import (AlertLog, Listing, Property, PropertyFeature, PropertyMerge, Score, Simulation,
+from radar.models import (AlertLog, Goal, Listing, Property, PropertyFeature, PropertyMerge, Score, Simulation,
                           Status, UserNote)
 
 
@@ -51,6 +51,11 @@ def merge_properties(db: Session, a_id: int, b_id: int, reason: str, now: dateti
             kn.note = f"{kn.note or ''}\n[merged #{lose.id}] {ln.note}".strip()
             db.add(kn)
         db.delete(ln)
+
+    g = db.get(Goal, 1)
+    if g is not None and g.property_id == lose.id:
+        g.property_id = keep.id
+        db.add(g)
 
     for al in db.exec(select(AlertLog).where(AlertLog.property_id == lose.id)):
         al.property_id = keep.id  # keeps "already alerted" knowledge on the survivor

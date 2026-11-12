@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block body %}
+{% if goal.set %}
+<div class="card"><span class="muted">Goal</span> ·
+  {% if goal.type == "listing" %}<a href="/p/{{ goal.property_id }}">{{ goal.title or "target listing" }}</a>{% else %}manual target{% endif %}
+  · {{ goal.price_mad|mad }} MAD
+  {% if goal.simulation_ok %}· cash needed <b>{{ goal.total_cash_needed_mad|mad }} MAD</b> · {{ goal.monthly_payment_mad|mad }} MAD/month
+  {% else %}<span class="muted">· simulation needs financing.yaml</span>{% endif %}
+</div>
+{% endif %}
+<form class="filters card" method="get">
+  <select name="zone"><option value="">All zones</option>
+    {% for z in zones %}<option value="{{ z }}" {% if f.zone == z %}selected{% endif %}>{{ z.replace("_"," ").title() }}</option>{% endfor %}
+  </select>
+  <input name="min_score" inputmode="numeric" placeholder="min score" size="8" value="{{ f.min_score }}">
+  <select name="sort">
+    {% for k, lbl in [("score","Score"),("price_vs_zone","Cheapest vs zone"),("price","Price"),("price_m2","Price/m²"),("dom","Days on market"),("new","Newest")] %}
+    <option value="{{ k }}" {% if f.sort == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+  </select>
+  <label><input type="checkbox" name="all" value="1" {% if f.all %}checked{% endif %}> incl. out-of-profile</label>
+  {% if f.watch %}<input type="hidden" name="watch" value="1">{% endif %}
+  <button>Apply</button>
+</form>
+<p class="muted">{{ rows|length }} {{ "watched " if f.watch }}listings</p>
+{% for r in rows %}
+<a href="/p/{{ r.id }}" style="color:inherit"><div class="card row">
+  {% if r.photo %}<img src="{{ r.photo }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+  <div class="grow">
+    <div class="title">{{ r.title or "Listing #%d"|format(r.id) }}</div>
+    <div class="num">{{ r.price_mad|mad }} MAD · {{ r.surface_m2 or "?" }} m² · {{ r.price_m2|mad }}/m²
+      {% if r.price_vs_zone %}<span class="{{ 'good' if r.price_vs_zone < 0.97 else ('bad' if r.price_vs_zone > 1.03 else 'muted') }}">{{ "%.2f"|format(r.price_vs_zone) }}× zone</span>{% endif %}</div>
+    <div><span class="chip">{{ r.zone_label }}</span><span class="chip">{{ r.dom }} d</span>
+      {% for s in r.sources %}<span class="chip">{{ s }}</span>{% endfor %}
+      {% if r.note_status %}<span class="chip">★ {{ r.note_status }}</span>{% endif %}
+      {% if r.status == "removed" %}<span class="chip bad">removed</span>{% endif %}</div>
+    <div class="muted hide-sm">{{ r.top_reasons[:2]|join(" · ") }}</div>
+  </div>
+  <div class="score {{ 'good' if (r.score or 0) >= 75 }}">{{ "%.0f"|format(r.score) if r.score is not none else "–" }}</div>
+</div></a>
+{% else %}
+<div class="card muted">No listings yet. Run <code>radar run</code>.</div>
+{% endfor %}
+{% endblock %}

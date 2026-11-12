@@ -2,7 +2,7 @@ import copy
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from radar.market.index import compute_index, drop_outliers, latest_index, quantiles
 from radar.models import Listing, Property
@@ -114,3 +114,28 @@ def test_zone_index_window_reliability_trend(settings, engine):
         # same-day recompute is idempotent
         compute_index(db, now, date(2026, 11, 1), cfg)
         db.commit()
+
+
+def test_single_listing_zone_scores_neutral_end_to_end(settings, engine):
+    """Regression: a zone with one listing must not give that listing best-in-zone points."""
+    from radar.scoring.store import score_all
+    cfg = dict(settings.scoring["market_index"], min_points=1)
+    now = datetime(2026, 11, 1, tzinfo=timezone.utc)
+    with Session(engine) as db:
+        _add(db, "anfa", 2_480_000, 92, now)          # 26 956.52 MAD/m2: rounding would break equality
+        db.commit()
+        compute_index(db, now, now.date(), cfg)
+        score_all(db, settings, now, now.date())
+        db.commit()
+        from radar.models import Score
+        sc = db.exec(select(Score)).one()
+    f = next(x for x in sc.breakdown["factors"] if x["name"] == "price_vs_zone")
+    assert f["value"] == 0.5
+
+
+def test_degenerate_zone_distribution_is_not_best_in_zone(settings):
+    """Regression: with p25 == median == p75 a listing AT the median must not get full points."""
+    zs = ZoneStats(p25=25_000, median=25_000, p75=25_000, count=5, reliable=True)
+    f = lambda price: next(x for x in score(base(zone_stats=zs, price_mad=price), settings.scoring,
+                                            settings.profile).factors if x.name == "price_vs_zone").value
+    assert f(2_250_000) == 0.5 and f(2_000_000) == 1.0 and f(2_500_000) == 0.0

@@ -145,7 +145,10 @@ def score(inp: ScoreInput, cfg: dict, profile) -> ScoreResult:
     if zs and pm2 and zs.reliable:
         a = cfg["factors"]["price_vs_zone"]["anchors"]
         pvz = round(pm2 / zs.median, 3)
-        v = interp(pm2, [zs.p25, zs.median, zs.p75], [a["p25"], a["median"], a["p75"]])
+        if zs.p75 > zs.p25:
+            v = interp(pm2, [zs.p25, zs.median, zs.p75], [a["p25"], a["median"], a["p75"]])
+        else:  # degenerate distribution (all equal): at the median = median score, not best-in-zone
+            v = a["median"] if pm2 == zs.median else (a["p25"] if pm2 < zs.median else a["p75"])
         pct = (pvz - 1) * 100
         add("price_vs_zone", v, f"{abs(pct):.0f}% {'below' if pct < 0 else 'above'} {_zone_label(inp.zone)} "
                                 f"median ({pm2:,.0f} vs {zs.median:,.0f} MAD/m²)")

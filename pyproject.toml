@@ -15,6 +15,10 @@ dependencies = [
   "anthropic>=2.8",
   "imagehash>=4.3",
   "pillow>=10",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "jinja2>=3.1",
+  "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +34,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["radar*"]
+
+[tool.setuptools.package-data]
+radar = ["api/templates/*.html", "migrations/script.py.mako"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

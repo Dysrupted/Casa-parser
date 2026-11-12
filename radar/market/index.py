@@ -52,7 +52,7 @@ def compute_index(db: Session, now: datetime, today: date, cfg: dict) -> dict[st
         p25, med, p75 = quantiles(xs)
         row = db.get(ZoneIndex, (zone, today)) or ZoneIndex(zone=zone, date=today, median_m2=med, p25=p25,
                                                             p75=p75, count=len(xs))
-        row.median_m2, row.p25, row.p75, row.count = round(med), round(p25), round(p75), len(xs)
+        row.median_m2, row.p25, row.p75, row.count = med, p25, p75, len(xs)  # unrounded: display rounds
         row.reliable = len(xs) >= cfg["min_points"]
         for days in cfg["trend_days"]:
             past = db.exec(select(ZoneIndex).where(ZoneIndex.zone == zone,

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Casa Radar{% endblock %}</title>
+<style>
+:root{--bg:#f7f6f3;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#e3e1dc;--accent:#0b6e69;--good:#1f7a3a;--bad:#b3261e;--chip:#eef3f2}
+@media (prefers-color-scheme:dark){:root{--bg:#121314;--card:#1c1d1f;--ink:#ececec;--mute:#9a9aa0;--line:#2c2d30;--accent:#4fb8b0;--good:#6fcf8b;--bad:#f2867e;--chip:#22302f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--accent);text-decoration:none}header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav{display:flex;gap:16px;align-items:center;max-width:1100px;margin:0 auto;padding:10px 16px}nav b{margin-right:auto}
+main{max-width:1100px;margin:0 auto;padding:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.muted{color:var(--mute)}.chip{display:inline-block;background:var(--chip);border-radius:99px;padding:1px 9px;font-size:12px;margin:2px 4px 2px 0}
+.score{font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}.good{color:var(--good)}.bad{color:var(--bad)}
+.row{display:flex;gap:12px}.row img{width:96px;height:72px;object-fit:cover;border-radius:8px;flex:none;background:var(--line)}
+.grow{flex:1;min-width:0}.title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{font-variant-numeric:tabular-nums}form.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input,select,textarea,button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+button{background:var(--accent);color:#fff;border:0;cursor:pointer}button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:500;font-size:13px}
+.photos{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory}.photos img{height:200px;border-radius:10px;scroll-snap-align:start}
+.chart{width:100%;max-width:420px;height:auto;color:var(--accent)}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi b{display:block;font-size:18px}.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+@media (max-width:600px){.hide-sm{display:none}}
+</style>
+</head>
+<body>
+<header><nav><b>🏠 Casa Radar</b><a href="/">Listings</a><a href="/?watch=1">Watchlist</a><a href="/market">Market</a></nav></header>
+<main>
+{% if readonly %}<p class="chip">Read-only view</p>{% endif %}
+{% block body %}{% endblock %}
+</main>
+</body>
+</html>

@@ -209,3 +209,26 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 50. **No automatic un-merge.** `radar dupes` lists merges for the manual 10-pair check and
     `radar merge A B` forces one. A wrong auto-merge would need an un-merge command (v2) or a
     threshold change plus a re-ingest.
+
+## M7 — Dashboard, watchlist, Finance Cockpit API
+
+51. **FastAPI + server-rendered Jinja + inline SVG, not React+Vite.** One process, no JS build, no
+    CDN, fast on a phone (verified at iPhone width: no horizontal scroll). The JSON API
+    (`/api/listings`, `/api/properties/{id}`, `/api/market[/{zone}]`, `/api/goal`) is complete, so a
+    React front end can replace the templates later without backend changes. OpenAPI at `/api/docs`.
+
+52. **`/api/goal` (PRD F9)**: one `goal` row, holding either a target property or a manual price. It
+    returns `total_cash_needed` and `monthly_payment` (MAD/EUR) from the simulation, plus
+    `simulation_ok`/`missing_params` so the Cockpit can tell "not configured" apart from zero.
+    Set it with `PUT /api/goal`, the 🎯 button, or `radar set-goal`. Merges re-point it.
+
+53. **Auth**: `RADAR_DASHBOARD_PASSWORD` (HTTP Basic, works natively on phones), `RADAR_API_TOKEN`
+    (Bearer, `/api/*` only, for the Cockpit), `RADAR_SHARE_TOKEN` (read-only HTML via
+    `?share=`, remembered in a cookie, never writes, no API). `radar serve` refuses a public bind
+    with no credentials. Put it behind HTTPS (Caddy/nginx) on the VPS: Basic auth over plain
+    HTTP leaks the password.
+
+54. **Index stats are stored unrounded** (rounding is display-only). Rounding the median broke
+    equality in degenerate zones (p25 = median = p75, e.g. one listing). That gave the only listing
+    in a zone full "below p25" points. A degenerate distribution now scores the median listing as
+    neutral. Regression tests cover both.
