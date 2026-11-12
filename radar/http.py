@@ -15,7 +15,7 @@ import httpx
 from radar.config import HttpConfig
 
 log = logging.getLogger(__name__)
-Kind = Literal["search", "detail", "robots"]
+Kind = Literal["search", "detail", "robots", "api"]
 
 
 class FetchError(Exception):
@@ -65,7 +65,9 @@ class PoliteFetcher:
         cached = self._cache_read(url, kind)
         if cached is not None:
             return cached
-        if kind != "robots" and not self._allowed(url):
+        # robots.txt governs crawling; JSON APIs (geocoding, FX) are governed by their own
+        # usage policies, which we honour via delay + cache + identification.
+        if kind not in ("robots", "api") and not self._allowed(url):
             raise RobotsDisallowed(f"robots.txt disallows (or could not be read) for {url}")
         text = self._network_get(url)
         self._cache_write(url, text)

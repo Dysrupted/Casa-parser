@@ -80,10 +80,25 @@ class MubawabSource(Source):
             description=description,
             photos=[p for p in dict.fromkeys(photos) if p and not p.startswith("data:")],
             agency=self.text(tree, "detail_agency"),
+            address_raw=self.text(tree, "detail_address"),
             surface_m2=parse_surface(feats),
             **parse_counts(feats),
         )
+        data.lat, data.lon = self._coords(tree)
         return _merge_jsonld(tree, data)
+
+    def _coords(self, tree) -> tuple[float | None, float | None]:
+        pairs = [("lat", "lon"), ("lat", "lng"), ("data-lat", "data-lng"), ("data-lat", "data-lon"),
+                 ("data-latitude", "data-longitude")]
+        for node in self.all(tree, "detail_geo"):
+            for a, b in pairs:
+                try:
+                    lat, lon = float(node.attributes[a]), float(node.attributes[b])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if lat and lon:
+                    return lat, lon
+        return None, None
 
 
 def _merge_jsonld(tree: HTMLParser, data: DetailData) -> DetailData:

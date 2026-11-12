@@ -50,3 +50,38 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 
 14. **No migrations framework yet** (`create_all`). Add Alembic when the first schema change
     lands on a DB holding real history (likely M2).
+
+## M2 — LLM extraction, geo, FX
+
+15. **Alembic migrations from M2 on.** `init_db` = `alembic upgrade head`. 0001 = M1 schema,
+    0002 = M2 delta. New schema changes → `alembic revision --autogenerate` (render_as_batch
+    for SQLite).
+
+16. **Two extractors, both stored.** `rules` (regex, French) always re-runs (cheap, deterministic);
+    `llm:<model>` runs only when `description_hash` changes. `propertyfeature` keeps one row per
+    (property, field, extractor); `resolved_features()` picks the highest-confidence non-null value
+    ≥ `llm.min_confidence`. *Why:* comparing the extractors is free QA, and turning the LLM off
+    degrades gracefully instead of failing.
+
+17. **Anti-hallucination = verified spans.** Each LLM value must come with a `source_span` that is
+    literally in the description (case/accent/whitespace-insensitive). Otherwise the value is
+    nulled and counted in `llm_rejected_fields`. Null = "not stated", never a guess.
+
+18. **LLM call:** Claude via the official SDK, `beta.messages.parse` with a Pydantic schema
+    (structured outputs), `effort: low` (simple extraction; tune in `enrich.yaml`), server-side
+    `fallbacks: "default"` in case a request is declined. Error handling: auth/permission →
+    provider disabled for the run (rules-only + notify); rate limit/5xx/refusal/bad output →
+    skip this listing and retry next run. Cost guard: `max_extractions_per_run`.
+
+19. **Geo precision ladder:** page coordinates > Nominatim address > zone centroid, recorded in
+    `property.geo_precision`. Results outside the Casablanca bbox are rejected. Zone centroids
+    and the Corniche polyline are **approximate, hand-placed**: refine on a map.
+    `dist_corniche_m` = point-to-polyline distance (local equirectangular projection).
+
+20. **robots.txt is not checked for JSON APIs** (`kind="api"`: Nominatim, FX). Those are governed
+    by their usage policies; we still identify ourselves, wait ≥3 s and cache (30 d).
+
+21. **FX:** EUR/MAD from open.er-api.com (ECB doesn't publish MAD), stored once per day in `fxrate`.
+    A sanity band rejects broken values; past `max_staleness_days` EUR is reported as null rather
+    than stale. `manual_rate` overrides it, e.g. with your bank's quote. EUR is computed on read
+    (`to_eur`), never stored on listings.

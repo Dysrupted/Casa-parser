@@ -32,6 +32,7 @@ class CacheTTL(BaseModel):
     search: float
     detail: float
     robots: float
+    api: float
 
 
 class HttpConfig(BaseModel):
@@ -72,6 +73,55 @@ class SourcesFile(BaseModel):
     http: HttpConfig
     pipeline: PipelineConfig
     sources: dict[str, SourceConfig]
+
+
+class LlmConfig(BaseModel):
+    enabled: bool
+    provider: str
+    model: str
+    effort: str
+    max_tokens: int
+    max_extractions_per_run: int = Field(ge=0)
+    min_confidence: float = Field(ge=0, le=1)
+
+
+LatLon = tuple[float, float]
+
+
+class BBox(BaseModel):
+    lat_min: float
+    lat_max: float
+    lon_min: float
+    lon_max: float
+
+    def contains(self, p: LatLon) -> bool:
+        return self.lat_min <= p[0] <= self.lat_max and self.lon_min <= p[1] <= self.lon_max
+
+
+class NominatimConfig(BaseModel):
+    enabled: bool
+    url: str
+
+
+class GeoConfig(BaseModel):
+    zone_centroids: dict[str, LatLon]
+    corniche_polyline: list[LatLon] = Field(min_length=2)
+    bbox: BBox
+    nominatim: NominatimConfig
+
+
+class FxConfig(BaseModel):
+    url: str
+    json_path: list[str]
+    max_staleness_days: int = Field(ge=0)
+    sanity_range: tuple[float, float]
+    manual_rate: float | None = None
+
+
+class EnrichFile(BaseModel):
+    llm: LlmConfig
+    geo: GeoConfig
+    fx: FxConfig
 
 
 def strip_accents(s: str) -> str:
@@ -120,6 +170,8 @@ class Settings:
         if contact:
             self.http.user_agent = f"{self.http.user_agent} contact:{contact}"
         self.zones = ZoneMap(aliases=self._load("zones.yaml"))
+        enrich = EnrichFile(**self._load("enrich.yaml"))
+        self.llm, self.geo, self.fx = enrich.llm, enrich.geo, enrich.fx
 
     def _load(self, name: str) -> dict:
         with open(self.config_dir / name, encoding="utf-8") as f:

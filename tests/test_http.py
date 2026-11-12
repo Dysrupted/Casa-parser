@@ -10,7 +10,7 @@ BASE = "https://example.ma"
 
 def cfg(**kw):
     d = dict(user_agent="CasaRadar/test", min_delay_s=3, max_delay_s=5, timeout_s=5, max_retries=1,
-             retry_backoff_s=1, cache_ttl_hours={"search": 6, "detail": 168, "robots": 24})
+             retry_backoff_s=1, cache_ttl_hours={"search": 6, "detail": 168, "robots": 24, "api": 720})
     d.update(kw)
     return HttpConfig(**d)
 

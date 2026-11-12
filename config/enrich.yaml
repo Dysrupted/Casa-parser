@@ -1,0 +1,41 @@
+llm:
+  enabled: true                 # auto-skipped (rules only) if no Anthropic credentials are found
+  provider: anthropic
+  model: claude-opus-5-5
+  effort: low                   # extraction is simple; raise if spot-checks show misses
+  max_tokens: 4000
+  max_extractions_per_run: 200  # cost guard
+  min_confidence: 0.5           # below this a value is stored but ignored by scoring
+
+geo:
+  # Priority: coordinates embedded in the detail page > geocoded address > zone centroid.
+  # Centroids/polyline are APPROXIMATE (hand-placed); refine on a map. Format: [lat, lon].
+  zone_centroids:
+    ain_diab: [33.5905, -7.6790]
+    anfa:     [33.5870, -7.6540]
+    corniche: [33.5975, -7.6690]
+    racine:   [33.5885, -7.6370]
+    gauthier: [33.5905, -7.6265]
+  # Boulevard de la Corniche, El Hank lighthouse -> Sidi Abderrahmane (west).
+  corniche_polyline:
+    - [33.6090, -7.6505]
+    - [33.6040, -7.6580]
+    - [33.5990, -7.6650]
+    - [33.5955, -7.6730]
+    - [33.5915, -7.6830]
+    - [33.5870, -7.6930]
+    - [33.5845, -7.6995]
+  # Bounding box sanity check: anything outside is rejected as a bad geocode.
+  bbox: {lat_min: 33.45, lat_max: 33.70, lon_min: -7.80, lon_max: -7.45}
+  nominatim:
+    enabled: true
+    url: https://nominatim.openstreetmap.org/search
+    # OSM policy: max 1 req/s, identify the app; our PoliteFetcher floor (3 s) is stricter.
+
+fx:
+  # EUR/MAD fetched once per day. ECB does not publish MAD, so use a free aggregator.
+  url: https://open.er-api.com/v6/latest/EUR
+  json_path: [rates, MAD]
+  sanity_range: [5, 20]         # reject feed values outside this band as broken
+  max_staleness_days: 7         # beyond this, EUR values are reported as null, not stale
+  manual_rate: null             # set a number to override (e.g. a bank quote); null = use feed
