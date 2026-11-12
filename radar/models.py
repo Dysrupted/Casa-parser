@@ -138,3 +138,29 @@ class Simulation(SQLModel, table=True):
     ok: bool
     outputs: dict = Field(default_factory=dict, sa_column=Column(JSON))
     computed_at: datetime
+
+
+class ZoneIndex(SQLModel, table=True):
+    """Daily asking-price/m² stats per zone (one price per property, outliers removed)."""
+    zone: str = Field(primary_key=True)
+    date: date_ = Field(primary_key=True)
+    median_m2: float
+    p25: float
+    p75: float
+    count: int
+    reliable: bool = False
+    trend_30d: float | None = None   # median vs the latest index >= 30 days older
+    trend_90d: float | None = None
+
+
+class Score(SQLModel, table=True):
+    """Explainable score, one row per property per day (history kept)."""
+    __table_args__ = (UniqueConstraint("property_id", "date"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    property_id: int = Field(foreign_key="property.id", index=True)
+    date: date_
+    computed_at: datetime
+    total: float
+    in_profile: bool
+    breakdown: dict = Field(default_factory=dict, sa_column=Column(JSON))

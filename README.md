@@ -10,7 +10,7 @@ Spec: PRD "Casa Radar" (v1). Decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 | M1 | Mubawab + DB + daily snapshots, idempotent reruns | ✅ built — awaiting real fixtures |
 | M2 | LLM extraction + geo + FX | ✅ built — needs API key + spot-check |
 | M3 | Simulation (workbook port) | ✅ engine built — needs workbook rates + reference cases |
-| M4 | Zone index + scoring | ⏳ |
+| M4 | Zone index + scoring | ✅ built |
 | M5 | Telegram alerts | ⏳ |
 | M6 | Avito, Sarouty + dedupe | ⏳ |
 | M7 | Dashboard + watchlist + `/api/goal` | ⏳ |
@@ -33,6 +33,8 @@ radar status              # counts per zone/status, last run, events, core-field
 radar enrich              # re-run FX + feature extraction + geo without crawling
 radar spotcheck -n 20     # data/spotcheck.md: description vs extracted values + spans (M2 review)
 radar simulate 2500000 --agency   # all-in cost, cash needed, monthly payment (config/financing.yaml)
+radar index               # asking-price/m² per zone: median, p25, p75, n, 30/90-day trend
+radar top -n 10           # best in-profile listings with "why this score"
 radar record-fixture "<url>" tests/fixtures/mubawab/search_p1.html   # capture a test fixture
 ```
 
@@ -50,6 +52,7 @@ Exit code is non-zero only if every source failed.
 ```
 config/          search_profile.yaml · zones.yaml (alias table) · sources.yaml (http, pipeline, selectors)
                  enrich.yaml (LLM, geo centroids + Corniche polyline, FX)
+                 financing.yaml (workbook rates) · scoring.yaml (weights, anchors, penalties)
 radar/
   config.py      typed YAML loading (pydantic), zone resolver
   http.py        PoliteFetcher — robots.txt, ≥3 s randomized delay, disk cache, retries
@@ -60,6 +63,9 @@ radar/
   normalize/     schema.py (strict extraction schema + span verification) · rules.py · extract.py
   llm/provider.py  LLMProvider protocol; Anthropic implementation
   enrich/        geo.py (precision ladder, Corniche distance) · fx.py
+  market/index.py  per-zone asking-price/m² index
+  scoring/       score.py (pure, explainable) · store.py (DB loader, daily rows)
+  pipeline/analyze.py  index → scores
   simulation/    params.py (config model) · engine.py (pure, Decimal) · store.py (per-listing)
   migrations/    Alembic
   cli.py

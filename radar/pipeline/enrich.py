@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 
 
 class Enricher:
+    name = "enrich"
+
     def __init__(self, settings: Settings, fetcher: Fetcher, provider: LLMProvider | None, notify=log.error):
         self.s, self.fetcher, self.provider, self.notify = settings, fetcher, provider, notify
         self.geocoder = Geocoder(settings.geo, fetcher)

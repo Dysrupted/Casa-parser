@@ -114,3 +114,29 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 
 28. **Reference cases** live in `tests/fixtures/simulation/reference_cases.yaml`. The test is skipped
     until they are filled, then it must match every listed output exactly.
+
+## M4 — Zone index & scoring
+
+29. **The index is an asking-price/m² index**, with one price per *property* (its cheapest active
+    listing, so post-M6 duplicates don't double count), over a 90-day window, with IQR outliers removed.
+    Quantiles use the inclusive method (= Excel QUARTILE.INC). A zone is `reliable` once it has ≥ `min_points`
+    (default 5; the PRD target is 30). An unreliable zone gives a *neutral* price factor, not a zero.
+
+30. **Score = Σ weightᵢ·factorᵢ − data-quality penalty**, weights normalised to 100, all in
+    `config/scoring.yaml`. Price-vs-zone is piecewise-linear on (p25 → 1, median → 0.5, p75 → 0).
+    Every factor stores value, points and a human reason. `top_reasons()` feeds alerts.
+
+31. **Unknown ≠ absent.** A factor that can't be computed takes `missing_factor_value` (0.5), is
+    marked `value: null` and explained. Missing data is charged once, via the penalty.
+    Exception: in `features`, an unconfirmed nice-to-have counts 0, because a "nice to have" is only
+    worth points when confirmed.
+
+32. **Profile fit is separate from the score.** `in_profile=false` for surface/price/zone outside
+    the profile or a must-have explicitly false. Unverified must-haves are noted, not excluded.
+    Alerts (M5) only consider in-profile listings.
+
+33. **Market signals**: cumulative price drop over the lookback (peak snapshot vs current) and days
+    on market (negotiation room). Relisted > 3× → flag "possibly stale/fake" (PRD §9).
+
+34. **Pipeline stages** are now a list (`enrich`, `analyze`) run after crawling, each fail-soft
+    and committed separately.
