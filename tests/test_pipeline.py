@@ -129,7 +129,8 @@ def test_max_pages_reached_is_incomplete(settings, engine, clock):
     settings.sources["mubawab"].max_pages = 1
     run = make(settings, engine, clock)[0].run()
     assert run.status == "partial"
-    assert any("max_pages" in e for e in run.stats["mubawab"]["errors"])
+    assert any("max_pages" in n for n in run.stats["mubawab"]["notes"])     # expected limit, not an error
+    assert not run.stats["mubawab"]["errors"]
 
 
 def test_failing_source_does_not_kill_run(settings, engine, clock):
@@ -251,3 +252,12 @@ def test_pipeline_scores_every_listing(settings, engine, clock):
     assert len(scores) == 4                                                      # one per property/day
     for sc in scores:
         assert sc.breakdown["factors"] and 0 <= sc.total <= 100
+
+
+def test_rentals_in_sale_results_are_excluded(settings, engine, clock):
+    pages = default_pages()
+    pages[SEARCH] = pages[SEARCH].replace("Appartement Racine</a>", "Appartement à louer Racine</a>")
+    pages[f"{SEARCH}:p:2"] = pages[f"{SEARCH}:p:2"].replace("2 100 000 DH", "11 000 DH")
+    run = make(settings, engine, clock, pages)[0].run()
+    st = run.stats["mubawab"]
+    assert st["excluded_not_sale"] == 2 and st["new"] == 2

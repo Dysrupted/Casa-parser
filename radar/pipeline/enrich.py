@@ -48,13 +48,13 @@ class Enricher:
                 st["fx_stale"] = True  # feed down today; yesterday's-ish rate still valid
 
     def _features(self, db: Session, now, today, st):
-        listings = db.exec(select(Listing).where(Listing.status != Status.removed,
-                                                 Listing.description.is_not(None))).all()
+        listings = db.exec(select(Listing).where(Listing.status != Status.removed, or_(
+            Listing.description.is_not(None), Listing.amenities.is_not(None)))).all()
         budget = self.s.llm.max_extractions_per_run
         for l in listings:
             apply_rules(db, l, now)  # cheap & deterministic: always refresh
             st["rules"] += 1
-            if l.extracted_hash == l.description_hash:
+            if not l.description or l.extracted_hash == l.description_hash:
                 continue
             if self.provider is None or budget <= 0:
                 st["llm_pending"] += 1

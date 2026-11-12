@@ -6,6 +6,7 @@ running once (snapshots/events are unique per listing+day; counters advance once
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -86,14 +87,21 @@ class Pipeline:
         st = {"status": status, "pages": crawl.pages_fetched,
               "cards": len(crawl.listings), "in_zone": 0, "new": 0, "price_changes": 0,
               "relisted": 0, "missing": 0, "removed": 0, "details_fetched": 0,
-              "errors": list(crawl.errors)}
+              "errors": list(crawl.errors), "notes": list(crawl.notes)}
         if crawl.errors:
             self.notify(f"Casa Radar: {src.name} crawl incomplete: {crawl.errors[:3]}")
 
         seen_ids: set[int] = set()
+        sf = self.s.pipeline.sale_filter
+        rx = re.compile(sf.exclude_title_regex, re.I) if sf.exclude_title_regex else None
+        st["excluded_not_sale"] = 0
         for raw in crawl.listings:
             zone = self.s.zones.resolve(raw.location_raw) or self.s.zones.resolve(raw.title)
             if zone not in self.s.target_zones:
+                continue
+            if (raw.price_mad is not None and raw.price_mad < sf.min_price_mad) or (
+                    rx and rx.search(f"{raw.title or ''} {raw.url}".replace("-", " ").replace("_", " "))):
+                st["excluded_not_sale"] += 1  # rental mixed into sale results
                 continue
             st["in_zone"] += 1
             listing = self._upsert(db, run, raw, zone, now, st)
@@ -122,7 +130,9 @@ class Pipeline:
             db.add(prop)
             db.flush()
             listing = Listing(property_id=prop.id, zone=zone, first_seen=now, last_seen=now,
-                              **raw.model_dump(exclude={"photos"}), photos=raw.photos)
+                              **raw.model_dump(exclude={"photos", "amenities"}), photos=raw.photos,
+                              amenities=raw.amenities or None,
+                              description_hash=description_hash(raw.description))
             db.add(listing)
             db.flush()
             self._event(db, run, listing, today, EventType.new, new=listing.price_mad)
@@ -141,12 +151,16 @@ class Pipeline:
                 st["relisted"] += 1
             listing.status = Status.active
         listing.missing_runs = 0
+        if raw.description and raw.description != listing.description and listing.detail_fetched_at is None:
+            listing.description, listing.description_hash = raw.description, description_hash(raw.description)
         for f in ("url", "title", "location_raw", "surface_m2", "rooms", "bedrooms", "bathrooms", "agency"):
             v = getattr(raw, f)
             if v is not None:
                 setattr(listing, f, v)
         if raw.price_mad is not None:
             listing.price_mad = raw.price_mad
+        if raw.amenities:
+            listing.amenities = sorted(set(listing.amenities or []) | set(raw.amenities))
         if raw.photos and not listing.photos:
             listing.photos = raw.photos
         listing.zone, listing.last_seen = zone, now
@@ -178,6 +192,8 @@ class Pipeline:
         listing.description = d.description or listing.description
         listing.description_hash = description_hash(listing.description)
         listing.address_raw = d.address_raw or listing.address_raw
+        if d.amenities:
+            listing.amenities = sorted(set(listing.amenities or []) | set(d.amenities))
         if d.lat is not None and d.lon is not None:
             listing.page_lat, listing.page_lon = d.lat, d.lon
         if d.photos:

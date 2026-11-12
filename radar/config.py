@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import unicodedata
 from functools import cached_property
 from pathlib import Path
@@ -45,6 +46,7 @@ class HttpConfig(BaseModel):
     timeout_s: float
     max_retries: int
     retry_backoff_s: float
+    max_retry_after_s: float = 120
     cache_ttl_hours: CacheTTL
 
     @model_validator(mode="after")
@@ -56,10 +58,16 @@ class HttpConfig(BaseModel):
         return self
 
 
+class SaleFilter(BaseModel):
+    min_price_mad: float = 0
+    exclude_title_regex: str | None = None
+
+
 class PipelineConfig(BaseModel):
     missing_runs_before_removed: int = Field(ge=1)
     refresh_detail_days: float = Field(gt=0)
     timezone: str = "Africa/Casablanca"  # defines the 'day' for snapshots/events
+    sale_filter: SaleFilter = SaleFilter()
 
 
 class SourceConfig(BaseModel):
@@ -186,7 +194,8 @@ def strip_accents(s: str) -> str:
 
 
 def norm_text(s: str) -> str:
-    return " ".join(strip_accents(s).lower().replace("-", " ").split())
+    """Lowercase, accent-free, punctuation -> space ("Aïn-Diab, Casablanca" -> "ain diab casablanca")."""
+    return " ".join(re.sub(r"[^\w]+", " ", strip_accents(s).lower()).split())
 
 
 class ZoneMap(BaseModel):

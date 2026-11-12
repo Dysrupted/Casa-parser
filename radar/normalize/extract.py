@@ -46,7 +46,8 @@ def _upsert(db: Session, listing: Listing, field: str, value, conf: float, by: s
 
 
 def apply_rules(db: Session, listing: Listing, now: datetime) -> int:
-    hits = extract_rules(listing.description, listing.agency)
+    text = " | ".join(x for x in [listing.description or "", *(listing.amenities or [])] if x)
+    hits = extract_rules(text or None, listing.agency)
     for field in FEATURE_FIELDS:
         v, c, span = hits.get(field, (None, 0.0, None))
         _upsert(db, listing, field, v, c, "rules", span, now)

@@ -232,3 +232,50 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
     equality in degenerate zones (p25 = median = p75, e.g. one listing). That gave the only listing
     in a zone full "below p25" points. A degenerate distribution now scores the median listing as
     neutral. Regression tests cover both.
+
+## First contact with the live sites (2026-11-12)
+
+55. **Own robots.txt matcher** (`radar/robots.py`). `urllib.robotparser` ignores `*`/`$` in paths,
+    so Mubawab's `Disallow: /*:` (its `:p:N` pagination) would have been crawled. `Crawl-delay` is
+    now honoured too (Sarouty asks 10 s).
+
+56. **Mubawab = page 1 per neighbourhood.** Real URLs are `/fr/sd/casablanca/<slug>/appartements-a-vendre`
+    (ain-diab, anfa, racine, gauthier). Totals are 71–317 per zone, but page 2+ is forbidden by
+    robots.txt, so we take the first ~30 listings per zone daily. The crawl is never "complete",
+    so Mubawab gets no removal detection. That's the price of following robots.txt.
+
+57. **Mubawab has a daily request quota.** After ~25 detail pages it answers 429 with a
+    Retry-After of ~29 h (a fixed reset time). A Retry-After longer than `max_retry_after_s`
+    (120 s) now pauses that host and persists the pause in `data/cache/backoff.json` across runs.
+    Listings whose detail page wasn't fetched keep their search-card data.
+
+58. **Avito**: neighbourhood slugs don't filter, so we crawl Casablanca apartments newest-first
+    (8 pages ≈ 370 ads) and keep target zones locally. `immoneuf.avito.ma` project units are
+    skipped. Real JSON paths: `props.pageProps.componentProps.ads.ads`, surface/bedrooms in
+    `params.secondary[key=…]` (Avito's "rooms" key means bedrooms).
+
+59. **Sarouty disabled.** It answers 403 to user agents that identify as bots. We don't spoof.
+
+60. **Zone matching strips punctuation.** Real cards say "Ain Diab, Casablanca", and the old normaliser
+    kept the comma, so *no* real listing matched a zone. Covered by a test on recorded pages.
+
+61. **Structured amenities** (Mubawab's "Ascenseur", "Terrasse", "Concierge"…) are stored on the
+    listing and fed to the rules extractor alongside the description.
+
+62. **Recorded real pages** in `tests/fixtures/real/` (Mubawab search + detail, Avito search) back
+    `tests/test_real_pages.py`. Refresh them with `radar record-fixture` when a site changes.
+
+63. **Unknown surface = not a profile match.** The first real run's "best match" was a studio
+    with no stated surface. The 80–100 m² requirement can't be verified, so it no longer counts as
+    in-profile (it's still scored and listed).
+
+64. **Sale filter.** Both sites mix rentals into "for sale" results ("à louer", 11 000 MAD/month).
+    `pipeline.sale_filter` skips titles/URLs matching rental words and prices under 250 000 MAD.
+
+65. **Avito detail pages are skipped** (`fetch_details: false`): search results already carry the
+    description, photos, price and surface, and the detail JSON is an empty placeholder server-side.
+
+66. **Phone dashboard = claude.ai artifact fed by `radar export`.** The container can't serve a
+    public URL, so each refresh exports CSVs (listings, zones, run status) and uploads them as
+    the dashboard's data files. Once the VPS runs `radar serve` behind HTTPS, the built-in dashboard
+    (M7) covers the same need live.

@@ -62,3 +62,5 @@ def test_zone_resolution(settings):
     assert z.resolve("Anfa Supérieur à Casablanca") == "anfa"
     assert z.resolve("Maârif à Casablanca") is None
     assert z.resolve(None) is None
+    assert z.resolve("Ain Diab, Casablanca") == "ain_diab"      # real Mubawab format (comma)
+    assert z.resolve("Gauthier,Casablanca") == "gauthier"

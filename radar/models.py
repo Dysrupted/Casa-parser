@@ -64,6 +64,7 @@ class Listing(SQLModel, table=True):
     page_lat: float | None = None         # coordinates embedded in the detail page, if any
     page_lon: float | None = None
     photos: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    amenities: list[str] | None = Field(default=None, sa_column=Column(JSON(none_as_null=True)))  # site's structured tags
     photo_hashes: list[str] | None = Field(default=None, sa_column=Column(JSON))  # pHash hex, lazy
     raw_html_path: str | None = None
     detail_fetched_at: datetime | None = None

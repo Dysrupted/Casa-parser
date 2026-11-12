@@ -28,11 +28,14 @@ class RawListing(BaseModel):
     bathrooms: int | None = None
     location_raw: str | None = None
     agency: str | None = None
+    description: str | None = None   # some sites (Avito) ship the full text in search results
+    amenities: list[str] = []        # structured tags ("Ascenseur", "Terrasse"...)
     photos: list[str] = []
 
 
 class DetailData(BaseModel):
     description: str | None = None
+    amenities: list[str] = []
     photos: list[str] = []
     agency: str | None = None
     surface_m2: float | None = None
@@ -50,6 +53,7 @@ class CrawlResult:
     listings: list[RawListing] = field(default_factory=list)
     complete: bool = True          # every search URL paginated to its natural end, no errors
     errors: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)   # expected limits (not alert-worthy)
     pages_fetched: int = 0
 
 
@@ -96,11 +100,19 @@ class Source(ABC):
                 for c in cards:
                     seen.setdefault(c.external_id, c)
                 prev_ids = ids
+                if page < self.cfg.max_pages and not self.fetcher_allows(self.page_url(base, page + 1)):
+                    res.complete = False  # e.g. Mubawab forbids :p:N pagination in robots.txt
+                    res.notes.append(f"{base}: next page disallowed by robots.txt")
+                    break
             else:
                 res.complete = False  # hit max_pages: unseen listings may still exist
-                res.errors.append(f"{base}: max_pages={self.cfg.max_pages} reached")
+                res.notes.append(f"{base}: max_pages={self.cfg.max_pages} reached")
         res.listings = list(seen.values())
         return res
+
+    def fetcher_allows(self, url: str) -> bool:
+        check = getattr(self.fetcher, "_allowed", None)
+        return check(url) if check else True
 
     def fetch_detail(self, url: str) -> tuple[str, DetailData]:
         html = self.fetcher.get(url, "detail")

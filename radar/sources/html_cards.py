@@ -35,6 +35,9 @@ class HtmlCardSource(Source):
         a = self.first(card, "card_url")
         return self._abs(a.attributes.get("href")) if a is not None else None
 
+    def _amenities(self, node) -> list[str]:
+        return list(dict.fromkeys(t for n in self.all(node, "amenities") if (t := clean(n.text()))))
+
     def parse_search_page(self, html: str) -> list[RawListing]:
         tree = HTMLParser(html)
         out: list[RawListing] = []
@@ -46,7 +49,8 @@ class HtmlCardSource(Source):
             feats = " | ".join(clean(n.text()) for n in self.all(card, "features"))
             counts = parse_counts(feats)
             photos = [
-                self._abs(n.attributes.get("data-url") or n.attributes.get("data-src") or n.attributes.get("src"))
+                self._abs(n.attributes.get("data-lazy") or n.attributes.get("data-url")
+                          or n.attributes.get("data-src") or n.attributes.get("src"))
                 for n in self.all(card, "card_photo")
             ]
             agency_node = self.first(card, "agency")
@@ -64,6 +68,7 @@ class HtmlCardSource(Source):
                     location_raw=self.text(card, "location"),
                     agency=agency,
                     photos=[p for p in dict.fromkeys(photos) if p and not p.startswith("data:")],
+                    amenities=self._amenities(card),
                     **counts,
                 )
             )
@@ -83,6 +88,7 @@ class HtmlCardSource(Source):
             photos=[p for p in dict.fromkeys(photos) if p and not p.startswith("data:")],
             agency=self.text(tree, "detail_agency"),
             address_raw=self.text(tree, "detail_address"),
+            amenities=self._amenities(tree),
             surface_m2=parse_surface(feats),
             **parse_counts(feats),
         )

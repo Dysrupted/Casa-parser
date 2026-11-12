@@ -322,5 +322,54 @@ def set_goal_cmd(ref: str = typer.Argument(None, help="Property id or listing UR
         typer.echo(json.dumps(Q.goal(db, s), indent=2))
 
 
+@app.command()
+def export(out: Path = typer.Option(Path("data/export"), help="Output folder")) -> None:
+    """Snapshot listings + zone index as CSV (for the phone dashboard / spreadsheets)."""
+    import csv
+    from datetime import datetime, timezone
+
+    from radar.api import queries as Q
+
+    s, engine = _ctx()
+    out.mkdir(parents=True, exist_ok=True)
+    with Session(engine) as db:
+        rows = Q.listing_rows(db, s, in_profile=None, include_removed=False, limit=100000)
+        market = Q.market(db, s)
+        last = db.exec(select(Run).order_by(Run.id.desc())).first()
+    cols = ["id", "zone", "zone_label", "title", "url", "sources", "price_mad", "price_eur", "surface_m2",
+            "price_m2", "price_vs_zone", "score", "in_profile", "dom", "dist_corniche_m", "reason_1",
+            "reason_2", "reason_3", "first_seen"]
+    with open(out / "listings.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=cols)
+        w.writeheader()
+        for r in rows:
+            reasons = (r["top_reasons"] + ["", "", ""])[:3]
+            w.writerow({k: r.get(k) for k in cols if k in r} | {
+                "sources": " + ".join(r["sources"]), "reason_1": reasons[0], "reason_2": reasons[1],
+                "reason_3": reasons[2], "in_profile": "yes" if r["in_profile"] else "no",
+                "dist_corniche_m": round(r["dist_corniche_m"]) if r["dist_corniche_m"] is not None else None})
+    with open(out / "zones.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["zone", "zone_label", "median_m2", "p25_m2", "p75_m2", "listings_in_index", "reliable",
+                    "inventory", "median_days_on_market"])
+        for z in market:
+            c = z["current"] or {}
+            w.writerow([z["zone"], z["zone_label"], _r(c.get("median_m2")), _r(c.get("p25")), _r(c.get("p75")),
+                        c.get("count"), "yes" if c.get("reliable") else "no", z["inventory"], z["median_dom"]])
+    with open(out / "runs.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["source", "status", "cards_seen", "in_zone", "new", "notes", "errors", "run_at"])
+        for name, st in (last.stats if last else {}).items():
+            if name in s.sources:
+                w.writerow([name, st.get("status"), st.get("cards"), st.get("in_zone"), st.get("new"),
+                            len(st.get("notes", [])), len(st.get("errors", [])),
+                            last.started_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")])
+    typer.echo(f"exported {len(rows)} listings, {len(market)} zones -> {out}")
+
+
+def _r(x):
+    return None if x is None else round(x)
+
+
 if __name__ == "__main__":
     app()
