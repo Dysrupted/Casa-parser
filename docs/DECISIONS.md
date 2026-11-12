@@ -295,3 +295,12 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 69. **Detail fetches are capped per run** (`max_details_per_run`, Mubawab: 25 = its daily quota).
     The first GitHub run spent ~20 min on ~130 Mubawab detail pages that the quota would cut off anyway.
     Listings over the cap keep their card data and get their detail page on a later day.
+
+70. **Public page redesigned with the ui-ux-pro-max skill** (github.com/nextlevelbuilder/ui-ux-pro-max-skill,
+    run locally, stdlib-only). Its first suggestion (hero landing page, glassmorphism, display serif)
+    didn't fit a data page. Following the skill's own retry rule, the dashboard query gave: Data-Dense
+    Dashboard style, Fira Sans with tabular figures, blue data + amber highlight, a box plot for the
+    per-zone distribution (30–39 points/zone, above its 20-point minimum), and sortable keyboard-operable
+    table headers. Tables turn into cards on phones, the sort control and filters are tap-sized buttons,
+    and a statistics table backs the chart. Off-scale prices (site typos like 245 000 MAD/m²) are pinned
+    to the chart edge so they don't flatten every box.
