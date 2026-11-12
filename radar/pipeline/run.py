@@ -86,7 +86,7 @@ class Pipeline:
         status = "ok" if crawl.complete else ("failed" if crawl.pages_fetched == 0 else "partial")
         st = {"status": status, "pages": crawl.pages_fetched,
               "cards": len(crawl.listings), "in_zone": 0, "new": 0, "price_changes": 0,
-              "relisted": 0, "missing": 0, "removed": 0, "details_fetched": 0,
+              "relisted": 0, "missing": 0, "removed": 0, "details_fetched": 0, "details_deferred": 0,
               "errors": list(crawl.errors), "notes": list(crawl.notes)}
         if crawl.errors:
             self.notify(f"Casa Radar: {src.name} crawl incomplete: {crawl.errors[:3]}")
@@ -95,6 +95,7 @@ class Pipeline:
         sf = self.s.pipeline.sale_filter
         rx = re.compile(sf.exclude_title_regex, re.I) if sf.exclude_title_regex else None
         st["excluded_not_sale"] = 0
+        attempts = 0
         for raw in crawl.listings:
             zone = self.s.zones.resolve(raw.location_raw) or self.s.zones.resolve(raw.title)
             if zone not in self.s.target_zones:
@@ -106,7 +107,12 @@ class Pipeline:
             st["in_zone"] += 1
             listing = self._upsert(db, run, raw, zone, now, st)
             if src.cfg.fetch_details and self._needs_detail(listing, now):
-                self._fetch_detail(src, listing, now, st)
+                cap = src.cfg.max_details_per_run
+                if cap is None or attempts < cap:
+                    attempts += 1
+                    self._fetch_detail(src, listing, now, st)
+                else:
+                    st["details_deferred"] += 1   # picked up by a later run
             self._snapshot(db, run, listing, today)
             seen_ids.add(listing.id)
 

@@ -35,6 +35,7 @@ sources:
       - https://www.mubawab.ma/fr/sd/casablanca/racine/appartements-a-vendre
       - https://www.mubawab.ma/fr/sd/casablanca/gauthier/appartements-a-vendre
     pagination: "{url}:p:{page}"    # page 1 = bare url (page 2+ blocked by robots.txt, see above)
+    max_details_per_run: 25         # Mubawab's daily quota is ~25 detail pages; the rest wait for later runs
     id_pattern: "/p?a/(\\d+)"
     max_pages: 20
     fetch_details: true

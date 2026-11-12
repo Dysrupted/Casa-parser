@@ -77,6 +77,7 @@ class SourceConfig(BaseModel):
     pagination: str
     max_pages: int = Field(ge=1)
     fetch_details: bool = True
+    max_details_per_run: int | None = None            # cap slow detail fetches (site quotas)
     fetcher: Literal["http", "playwright"] = "http"   # playwright only for JS-rendered sites
     id_pattern: str = r"(\d{5,})"                       # regex on the listing URL; group 1 = external id
     selectors: dict[str, list[str]] = {}
