@@ -261,3 +261,13 @@ def test_rentals_in_sale_results_are_excluded(settings, engine, clock):
     run = make(settings, engine, clock, pages)[0].run()
     st = run.stats["mubawab"]
     assert st["excluded_not_sale"] == 2 and st["new"] == 2
+
+
+def test_detail_fetches_capped_per_run(settings, engine, clock):
+    settings.sources["mubawab"].max_details_per_run = 2
+    p, fetcher = make(settings, engine, clock)
+    st = p.run().stats["mubawab"]
+    assert st["details_fetched"] == 2 and st["details_deferred"] == 2
+    clock.t += timedelta(days=1)
+    st = make(settings, engine, clock)[0].run().stats["mubawab"]
+    assert st["details_fetched"] == 2 and st["details_deferred"] == 0      # the rest caught up

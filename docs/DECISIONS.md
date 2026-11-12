@@ -291,3 +291,7 @@ Non-obvious choices, newest last. Format: decision — why — consequence.
 68. **The public page shows less than the private tools.** It shows title, price, surface, zone, score,
     reasons and a link to the original ad. It carries no copied descriptions and no photos, which
     keeps it closer to "pointing to" the sites than republishing them.
+
+69. **Detail fetches are capped per run** (`max_details_per_run`, Mubawab: 25 = its daily quota).
+    The first GitHub run spent ~20 min on ~130 Mubawab detail pages that the quota would cut off anyway.
+    Listings over the cap keep their card data and get their detail page on a later day.
