@@ -13,6 +13,7 @@ from radar.http import Fetcher
 from radar.llm.provider import LLMError, LLMProvider, LLMUnavailable
 from radar.models import Listing, Property, Status
 from radar.normalize.extract import apply_llm, apply_rules
+from radar.simulation.store import simulate_all
 
 log = logging.getLogger(__name__)
 
@@ -24,8 +25,9 @@ class Enricher:
 
     def run(self, db: Session, now: datetime, today: date) -> dict:
         st = {"fx": None, "rules": 0, "llm": 0, "llm_rejected_fields": 0, "llm_errors": 0,
-              "llm_pending": 0, "geo": {"page": 0, "address": 0, "zone": 0, "none": 0}, "errors": []}
-        for step in (self._fx, self._features, self._geo):
+              "llm_pending": 0, "geo": {"page": 0, "address": 0, "zone": 0, "none": 0},
+              "simulation": None, "errors": []}
+        for step in (self._fx, self._features, self._geo, self._simulate):
             try:
                 step(db, now, today, st)
                 db.commit()
@@ -84,3 +86,6 @@ class Enricher:
                 prop.dist_corniche_m = round(self.geocoder.corniche_distance_m(p))
                 db.add(prop)
             st["geo"][prec] += 1
+
+    def _simulate(self, db: Session, now, today, st):
+        st["simulation"] = simulate_all(db, self.s, now, today)

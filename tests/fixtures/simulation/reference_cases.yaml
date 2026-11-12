@@ -1,0 +1,17 @@
+# Reference cases from Simulation_achat_immo_MNM.xlsx (PRD M3 acceptance: match to the dirham).
+# Nabil: fill `params` with the workbook's inputs and `expected` with its outputs, 2-3 cases.
+# `params` uses the same structure as config/financing.yaml and overrides it entirely.
+#
+# - name: "Ain Diab 92 m2 @ 2.65M"
+#   price_mad: 2650000
+#   agency_listing: true
+#   eur_mad: 10.85
+#   params: {acquisition_costs: {...}, financing: {...}, fx: {...}, rounding: {...}}
+#   expected:
+#     acquisition_costs_mad: 0
+#     total_cash_needed_mad: 0
+#     loan_amount_mad: 0
+#     monthly_payment_mad: 0
+#     total_cost_of_credit_mad: 0
+#     all_in_price_eur: 0
+cases: []

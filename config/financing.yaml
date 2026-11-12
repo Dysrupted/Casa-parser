@@ -1,0 +1,56 @@
+# Purchase simulation parameters (PRD F6).
+# ⚠️ Every rate below MUST be copied from Simulation_achat_immo_MNM.xlsx. They are null
+# on purpose: the simulation refuses to run (outputs null + list of missing params)
+# rather than guess. Rates are fractions (0.04 = 4 %).
+#
+# Each acquisition cost line: amount = clamp(rate * base + fixed_mad, min_mad, max_mad) * (1 + vat_rate)
+#   base: price | loan        applies: always | agency_listing | never
+acquisition_costs:
+  registration_duties:     # droits d'enregistrement
+    base: price
+    rate: null
+    fixed_mad: 0
+    vat_rate: 0
+    applies: always
+  land_registry:           # conservation foncière
+    base: price
+    rate: null
+    fixed_mad: null        # certificate / stamp fees, if the workbook has a fixed part
+    vat_rate: 0
+    applies: always
+  notary_fees:             # honoraires notaire (+ TVA)
+    base: price
+    rate: null
+    fixed_mad: 0
+    min_mad: null
+    vat_rate: null
+    applies: always
+  mortgage_registration:   # inscription hypothécaire
+    base: loan
+    rate: null
+    fixed_mad: 0
+    vat_rate: 0
+    applies: always
+  agency_fee:              # commission agence, only when the listing is from an agency
+    base: price
+    rate: null
+    fixed_mad: 0
+    vat_rate: null
+    applies: agency_listing
+
+financing:
+  down_payment_pct: null       # share of price paid in cash
+  finance_acquisition_costs: false   # true = costs added to the loan instead of paid cash
+  annual_rate: null            # nominal annual interest rate
+  duration_years: null
+  insurance:
+    mode: initial_capital      # initial_capital | outstanding_capital
+    annual_rate: null
+  bank_fees_mad: null          # frais de dossier
+
+fx:
+  sensitivity_pct: 0.05        # ± band on EUR/MAD for the EUR outputs (PRD: ±5 %)
+
+rounding:
+  # Excel ROUND semantics (half away from zero). Applied to outputs only, never mid-calculation.
+  decimals: 0

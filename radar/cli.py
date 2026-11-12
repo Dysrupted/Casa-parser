@@ -11,6 +11,7 @@ from sqlmodel import Session, func, select
 from radar.config import Settings
 from radar.db import init_db, make_engine
 from radar.http import PoliteFetcher
+from radar.enrich.fx import rate_for
 from radar.llm.provider import build_provider
 from radar.models import Listing, ListingEvent, Property, PropertyFeature, Run, Status
 from radar.pipeline.enrich import Enricher
@@ -131,6 +132,28 @@ def record_fixture(url: str, out: Path = typer.Argument(..., help="e.g. tests/fi
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     typer.echo(f"saved {len(html)} bytes -> {out}")
+
+
+@app.command("simulate")
+def simulate_cmd(price: float = typer.Argument(..., help="Price in MAD"),
+                 agency: bool = typer.Option(False, help="Listing sold through an agency"),
+                 eur_mad: float = typer.Option(None, help="Override EUR/MAD (default: latest stored)")) -> None:
+    """Simulate the all-in cost of buying at PRICE with config/financing.yaml."""
+    from datetime import date
+
+    from radar.simulation import simulate
+
+    s, engine = _ctx()
+    if eur_mad is None:
+        with Session(engine) as db:
+            eur_mad = rate_for(db, s.fx, date.today())
+    res = simulate(price, s.financing, agency_listing=agency, eur_mad=eur_mad)
+    if not res.ok:
+        typer.echo("Missing parameters in config/financing.yaml (copy them from the workbook):")
+        for m in res.missing_params:
+            typer.echo(f"  - {m}")
+        raise typer.Exit(2)
+    typer.echo(json.dumps(res.to_dict(), indent=2))
 
 
 if __name__ == "__main__":
